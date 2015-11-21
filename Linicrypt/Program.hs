@@ -1,13 +1,9 @@
 module Linicrypt.Program where
 
 --------------------------------------------------------------------------------
--- todo
-
--- find recoverable nodes given some subset of refs
---   -linicrypt
-
---------------------------------------------------------------------------------
 -- imports
+
+import Prelude hiding (not)
 
 import qualified Data.Bimap as B
 import Control.Monad.State
@@ -20,13 +16,55 @@ type Ref  = Int
 
 data Expr = Xor Ref Ref
           | Not Ref
-          | G Ref
-          | Input Int
+          | RandOracle Ref
+          | Rand Int                  -- need an id to distingish invocations
           deriving (Eq, Ord, Show)
 
-type Prog = B.Bimap Ref Expr
+data Prog = Prog { p_refMap  :: B.Bimap Ref Expr
+                 , p_outputs :: [Ref]
+                 }
 
 type P = State Prog
+
+{-instance Monoid Prog where-}
+  {-mempty = Prog { p_refMap = B.empty, p_outputs = [] }-}
+  {-mappend a b = undefined-}
+  {--- need to freshen references of prog b-}
+
+type Vector = [Int]
+type Matrix = [Vector]
+
+data Linicrypt = Linicrypt { l_constraints :: Vector
+                           , l_matrix      :: Matrix
+                           , l_out         :: Vector
+                           }
+
+--------------------------------------------------------------------------------
+-- convert linicrypt
+
+type LiniState = (Int, Linicrypt)
+
+type L = StateT LiniState P
+
+convert :: Prog -> Linicrypt
+convert = undefined
+
+recurse :: Ref -> L ()
+recurse ref = do
+    expr <- lift (ref2Expr ref)
+    n    <- getN
+    case expr of
+      Xor x y -> addRow ref [ if i == y || i == x then 1 else 0 | i <- [ 0 .. n ] ]
+      Not x   -> addRow ref [ if i == x then -1 else 0          | i <- [ 0 .. n ] ]
+
+getN :: L Int
+getN = undefined
+
+addRow :: Ref -> Vector -> L ()
+addRow = undefined
+
+trevnoc :: Linicrypt -> Prog
+trevnoc = undefined
 
 --------------------------------------------------------------------------------
 -- fancy stuff
@@ -61,57 +99,50 @@ recoverable known prog = evalState runIt prog
             else
               recover known refs
 
-          (G x) ->
+          (RandOracle x) ->
             if S.member x known then
               recover (S.insert ref known) refs
             else
               recover known refs
 
-          (Input _) -> recover known refs
+          (Rand _) -> recover known refs
 
+
+emptyProg :: Prog
+emptyProg = Prog { p_refMap = B.empty, p_outputs = [] }
 
 newProg :: P a -> Prog
-newProg m = execState m B.empty
+newProg m = execState m emptyProg
+
+printProg :: Prog -> IO ()
+printProg p = putStr (showProg p)
 
 showProg :: Prog -> String
-showProg prog = unlines $ evalState (evalStateT doit B.empty) prog
+showProg prog = evalState doit prog
   where
-    doit :: StateT (B.Bimap Ref Char) P [String]
+    doit :: P String
     doit = do
-      refs <- lift topoSort
-      mapM showLine refs
+      refs  <- topoSort
+      lines <- unlines <$> mapM showLine refs
+      let output = "output (" ++ concat (map show (p_outputs prog)) ++ ")\n"
+      return (lines ++ output)
 
-    showLine :: Ref -> StateT (B.Bimap Ref Char) P String
+    showLine :: Ref -> P String
     showLine ref = do
-      expr <- lift (ref2Expr ref)
-      a    <- getName ref
+      expr <- ref2Expr ref
       case expr of
         (Xor x y) -> do
-          b <- getName x
-          c <- getName y
-          return $ concat [a, " = Xor (", b, ", ", c, ")"]
+          return $ concat [show ref, " = Xor (", show x, ", ", show y, ")"]
         (Not x) -> do
-          b <- getName x
-          return $ concat [a, " = not(", b, ")"]
-        (G x) -> do
-          b <- getName x
-          return $ concat [a, " = G(", b, ")"]
-        (Input n) -> do
-          return $ concat [a, " <- Input ", show n]
-
-    getName :: Ref -> StateT (B.Bimap Ref Char) P String
-    getName ref = do
-      m <- get
-      if ref `B.member` m then
-        return [m B.! ref]
-      else do
-        let sym = if B.size m == 0 then 'a' else succ $ maximum $ B.elems m
-        put (B.insert ref sym m)
-        return [sym]
+          return $ concat [show ref, " = not(", show x, ")"]
+        (RandOracle x) -> do
+          return $ concat [show ref, " = RO(", show x, ")"]
+        (Rand n) -> do
+          return $ concat [show ref, " <- $"]
 
 topoSort :: P [Ref]
 topoSort = do
-    refs <- gets B.keys
+    refs <- gets (B.keys . p_refMap)
     reverse <$> fold refs []
   where
     recurse :: Ref -> [Ref] -> P [Ref]
@@ -130,22 +161,23 @@ topoSort = do
       fold xs seen'
 
 getArgs :: Expr -> [Ref]
-getArgs (Xor x y) = [x, y]
-getArgs (Not x)   = [x]
-getArgs (G x)     = [x]
-getArgs (Input _) = []
+getArgs (Xor x y)      = [x, y]
+getArgs (Not x)        = [x]
+getArgs (RandOracle x) = [x]
+getArgs (Rand _)       = []
 
 --------------------------------------------------------------------------------
 -- helpers
 
 insert :: Ref -> Expr -> P ()
 insert ref expr = do
-  b <- get
-  put $ B.insert ref expr b
+  b <- gets p_refMap
+  let b' = B.insert ref expr b
+  modify $ \p -> p { p_refMap = b' }
 
 freshRef :: P Ref
 freshRef = do
-  b <- get
+  b <- gets p_refMap
   if B.size b > 0 then
     return $ succ $ maximum $ B.keys b
   else
@@ -153,7 +185,7 @@ freshRef = do
 
 ref2Expr :: Ref -> P Expr
 ref2Expr ref = do
-  b <- get
+  b <- gets p_refMap
   if (B.member ref b) then
     return (b B.! ref)
   else
@@ -161,7 +193,7 @@ ref2Expr ref = do
 
 expr2Ref :: Expr -> P Ref
 expr2Ref expr = do
-  b <- get
+  b <- gets p_refMap
   if (B.memberR expr b) then
     return (b B.!> expr)
   else
@@ -169,7 +201,7 @@ expr2Ref expr = do
 
 insertExpr :: Expr -> P Ref
 insertExpr expr = do
-  b <- get
+  b <- gets p_refMap
   if (B.memberR expr b) then
     return (b B.!> expr)
   else do
@@ -180,8 +212,8 @@ insertExpr expr = do
 --------------------------------------------------------------------------------
 -- program dsl
 
-inp :: Int -> P Ref
-inp n = insertExpr (Input n)
+rand :: Int -> P Ref
+rand n = insertExpr (Rand n)
 
 xor :: Ref -> Ref -> P Ref
 xor x y = insertExpr (Xor x y)
@@ -189,15 +221,19 @@ xor x y = insertExpr (Xor x y)
 not :: Ref -> P Ref
 not x = insertExpr (Not x)
 
-g :: Ref -> P Ref
-g x = insertExpr (G x)
+ro :: Ref -> P Ref
+ro x = insertExpr (RandOracle x)
+
+output :: [Ref] -> P ()
+output refs = modify $ \p -> p { p_outputs = p_outputs p ++ refs }
 
 --------------------------------------------------------------------------------
 -- test
 
 p1 = newProg $ do
-  a <- inp 0
-  b <- inp 1
-  _ <- xor a b
-  _ <- g a
-  g b
+  a <- rand 0
+  b <- rand 1
+  c <- not b
+  d <- ro c
+  e <- xor a d
+  output [e]
