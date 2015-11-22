@@ -34,37 +34,84 @@ type P = State Prog
 type Vector = [Int]
 type Matrix = [Vector]
 
-data Linicrypt = Linicrypt { l_constraints :: Vector
+data Linicrypt = Linicrypt { l_constraints :: [(Vector, Vector)]
                            , l_matrix      :: Matrix
+                           , l_oracles     :: [Ref]
                            , l_out         :: Vector
-                           }
+                           } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- convert linicrypt
 
-type LiniState = (Int, Linicrypt)
+-- TODO: Refs can't be used to index into the matrix
 
-type L = StateT LiniState P
-
-convert :: Prog -> Linicrypt
-convert = undefined
-
-recurse :: Ref -> L ()
-recurse ref = do
-    expr <- lift (ref2Expr ref)
-    n    <- getN
-    case expr of
-      Xor x y -> addRow ref [ if i == y || i == x then 1 else 0 | i <- [ 0 .. n ] ]
-      Not x   -> addRow ref [ if i == x then -1 else 0          | i <- [ 0 .. n ] ]
-
-getN :: L Int
-getN = undefined
-
-addRow :: Ref -> Vector -> L ()
-addRow = undefined
+type L = StateT Linicrypt P
 
 trevnoc :: Linicrypt -> Prog
 trevnoc = undefined
+
+convert :: Prog -> Linicrypt
+convert prog = evalState (execStateT doit emptyLinicrypt) prog
+  where
+    emptyLinicrypt = Linicrypt [] [] [] []
+
+    refs = B.keys (p_refMap prog)
+    doit = do
+      mapM oracle     refs
+      mapM matrix     refs
+      mapM constraint refs
+
+oracle :: Ref -> L ()
+oracle ref = do
+    expr <- lift (ref2Expr ref)
+    case expr of
+      Rand _       -> addOracle ref
+      RandOracle _ -> addOracle ref
+      _            -> return ()
+
+matrix :: Ref -> L ()
+matrix ref = do
+    expr <- lift (ref2Expr ref)
+    n    <- getSize
+    case expr of
+      Xor x y      -> addRow ref [ if i == y || i == x then 1 else 0 | i <- [ 0 .. n ] ]
+      Not x        -> addRow ref [ if i == x then -1 else 0          | i <- [ 0 .. n ] ]
+      RandOracle x -> addRow ref [ if i == x then 1 else 0           | i <- [ 0 .. n ] ]
+      _            -> return ()
+
+constraint :: Ref -> L ()
+constraint ref = do
+    expr <- lift (ref2Expr ref)
+    case expr of
+      RandOracle x -> do
+        before <- getRow x
+        after  <- getRow ref
+        addConstraint (before, after)
+      _ -> return ()
+
+addOracle :: Ref -> L ()
+addOracle ref = modify $ \l -> l { l_oracles = l_oracles l ++ [ref] }
+
+addConstraint :: (Vector, Vector) -> L ()
+addConstraint pair = modify $ \l -> l { l_constraints = l_constraints l ++ [pair] }
+
+addRow :: Ref -> Vector -> L ()
+addRow ref vec = modify $ \l -> l { l_matrix = insertAt ref vec (l_matrix l) }
+
+getSize :: L Int
+getSize = gets (length . l_oracles)
+
+getRow :: Ref -> L Vector
+getRow ref = do
+    m <- gets l_matrix
+    return (m `at` ref)
+
+at :: Matrix -> Ref -> Vector
+at m ref = m !! ref
+
+-- TODO: make this more robust
+insertAt :: Int -> a -> [a] -> [a]
+insertAt ix val xs = take ix xs ++ [val] ++ drop (ix+1) xs
 
 --------------------------------------------------------------------------------
 -- fancy stuff
