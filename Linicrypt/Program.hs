@@ -3,20 +3,24 @@ module Linicrypt.Program where
 --------------------------------------------------------------------------------
 -- imports
 
-import Prelude hiding (not)
-
-import qualified Data.Bimap as B
 import Control.Monad.State
-import qualified Data.Set as S
+import Data.Maybe (fromMaybe)
+import Data.List (intercalate)
+import qualified Data.Set   as S
+import qualified Data.Bimap as B
+import qualified Data.Map   as M
 
 --------------------------------------------------------------------------------
 -- types
 
+-- field elements are from Z_p
+const_p    = 2
+const_zero = 0
+
 type Ref  = Int
 
-data Expr = Xor Ref Ref
-          | Not Ref
-          | RandOracle Ref
+data Expr = Plus [Ref]
+          | RandOracle [Ref]
           | Rand Int                  -- need an id to distingish invocations
           deriving (Eq, Ord, Show)
 
@@ -26,90 +30,126 @@ data Prog = Prog { p_refMap  :: B.Bimap Ref Expr
 
 type P = State Prog
 
-{-instance Monoid Prog where-}
-  {-mempty = Prog { p_refMap = B.empty, p_outputs = [] }-}
-  {-mappend a b = undefined-}
-  {--- need to freshen references of prog b-}
-
 type Vector = [Int]
 type Matrix = [Vector]
 
-data Linicrypt = Linicrypt { l_constraints :: [(Vector, Vector)]
+data Linicrypt = Linicrypt { l_constraints :: [(Matrix, Vector)]
                            , l_matrix      :: Matrix
-                           , l_oracles     :: [Ref]
-                           , l_out         :: Vector
+                           , l_out         :: Matrix
                            } deriving (Show)
 
 --------------------------------------------------------------------------------
 -- convert linicrypt
 
--- TODO: Refs can't be used to index into the matrix
+data LState = LState { lstate_ctr  :: Int
+                     , lstate_size :: Int
+                     , lstate_row  :: M.Map Ref Int
+                     , lstate_l    :: Linicrypt
+                     }
 
-type L = StateT Linicrypt P
+type L = StateT LState P
 
 trevnoc :: Linicrypt -> Prog
 trevnoc = undefined
 
 convert :: Prog -> Linicrypt
-convert prog = evalState (execStateT doit emptyLinicrypt) prog
+convert prog = lstate_l $ evalState (execStateT doit emptyLState) prog
   where
-    emptyLinicrypt = Linicrypt [] [] [] []
+
+    emptyLState :: LState
+    emptyLState = LState 0 0 M.empty (Linicrypt [] [] [])
 
     refs = B.keys (p_refMap prog)
+
+    doit :: L ()
     doit = do
-      mapM oracle     refs
-      mapM matrix     refs
-      mapM constraint refs
+      mapM_ countFreshVars refs
+      n <- gets lstate_ctr
+      modify $ \ls -> ls { lstate_size = n }
+      setCtr 0
+      mapM_ genMatrix refs
+      mapM_ constraint refs
+      mapM_ copyOutput (p_outputs prog)
 
-oracle :: Ref -> L ()
-oracle ref = do
+countFreshVars :: Ref -> L ()
+countFreshVars ref = do
     expr <- lift (ref2Expr ref)
     case expr of
-      Rand _       -> addOracle ref
-      RandOracle _ -> addOracle ref
+      Rand _       -> bumpCtr >> return ()
+      RandOracle _ -> bumpCtr >> return ()
       _            -> return ()
 
-matrix :: Ref -> L ()
-matrix ref = do
+genMatrix :: Ref -> L ()
+genMatrix ref = do
     expr <- lift (ref2Expr ref)
-    n    <- getSize
+    n    <- gets lstate_size
+
     case expr of
-      Xor x y      -> addRow ref [ if i == y || i == x then 1 else 0 | i <- [ 0 .. n ] ]
-      Not x        -> addRow ref [ if i == x then -1 else 0          | i <- [ 0 .. n ] ]
-      RandOracle x -> addRow ref [ if i == x then 1 else 0           | i <- [ 0 .. n ] ]
-      _            -> return ()
+      Plus xs -> do
+        rs <- mapM ref2Row xs
+        let zero = replicate n const_zero
+        putRow ref (foldr addRows zero rs)
+
+      RandOracle x -> do
+        c <- bumpCtr
+        putRow ref [ if i == c then 1 else 0 | i <- [ 0 .. n-1 ] ]
+
+      Rand _ -> do
+        c <- bumpCtr
+        putRow ref [ if i == c then 1 else 0 | i <- [ 0 .. n-1 ] ]
+
+copyOutput :: Ref -> L ()
+copyOutput ref = do
+    row <- ref2Row ref
+    modifyLinicrypt $ \l -> l { l_out = l_out l ++ [row] }
+
+addRows :: Vector -> Vector -> Vector
+addRows x y = zipWith (\x y -> (x + y) `mod` const_p) x y
 
 constraint :: Ref -> L ()
 constraint ref = do
     expr <- lift (ref2Expr ref)
     case expr of
-      RandOracle x -> do
-        before <- getRow x
+      RandOracle xs -> do
+        before <- mapM getRow xs
         after  <- getRow ref
         addConstraint (before, after)
       _ -> return ()
 
-addOracle :: Ref -> L ()
-addOracle ref = modify $ \l -> l { l_oracles = l_oracles l ++ [ref] }
+addConstraint :: (Matrix, Vector) -> L ()
+addConstraint pair = modifyLinicrypt $ \l -> l { l_constraints = l_constraints l ++ [pair] }
 
-addConstraint :: (Vector, Vector) -> L ()
-addConstraint pair = modify $ \l -> l { l_constraints = l_constraints l ++ [pair] }
+bumpCtr :: L Int
+bumpCtr = do
+    n <- gets lstate_ctr
+    modify $ \ls -> ls { lstate_ctr = n + 1 }
+    return n
 
-addRow :: Ref -> Vector -> L ()
-addRow ref vec = modify $ \l -> l { l_matrix = insertAt ref vec (l_matrix l) }
+setCtr :: Int -> L ()
+setCtr n = modify $ \ls -> ls { lstate_ctr = n }
 
-getSize :: L Int
-getSize = gets (length . l_oracles)
+ref2Row :: Ref -> L Vector
+ref2Row ref = do
+    rowMap <- gets lstate_row
+    let rowNum = fromMaybe (error "[row] no row") (M.lookup ref rowMap)
+    getRow rowNum
 
-getRow :: Ref -> L Vector
-getRow ref = do
-    m <- gets l_matrix
-    return (m `at` ref)
+getRow :: Int -> L Vector
+getRow i = do
+    m <- gets (l_matrix . lstate_l)
+    return (m !! i)
 
-at :: Matrix -> Ref -> Vector
-at m ref = m !! ref
+modifyLinicrypt :: (Linicrypt -> Linicrypt) -> L ()
+modifyLinicrypt f = modify $ \ls -> ls { lstate_l = f (lstate_l ls)}
 
--- TODO: make this more robust
+putRow :: Ref -> Vector -> L ()
+putRow ref vec = do
+    m <- gets (l_matrix . lstate_l)
+    let m' = m ++ [vec]
+        ix = length m
+    modifyLinicrypt $ \l -> l { l_matrix = m' }
+    modify $ \ls -> ls { lstate_row = M.insert ref ix ( lstate_row ls ) }
+
 insertAt :: Int -> a -> [a] -> [a]
 insertAt ix val xs = take ix xs ++ [val] ++ drop (ix+1) xs
 
@@ -128,26 +168,16 @@ recoverable known prog = evalState runIt prog
         expr <- ref2Expr ref
 
         case expr of
-          (Xor x y) ->
-            if S.member x known && S.member y known then
-              recover (S.insert ref known) refs
-            else if S.member y known && S.member ref known then
-              recover (S.insert x known) refs
-            else if S.member x known && S.member ref known then
-              recover (S.insert y known) refs
+          (Plus xs) -> do
+            let vars = S.fromList (ref : xs)
+            if S.size (S.difference vars known) == 1 then do
+              let recovered = S.elemAt 0 (S.difference vars known)
+              recover (S.insert recovered known) refs
             else
               recover known refs
 
-          (Not x) ->
-            if S.member x known then
-              recover (S.insert ref known) refs
-            else if elem ref known then
-              recover (S.insert x known) refs
-            else
-              recover known refs
-
-          (RandOracle x) ->
-            if S.member x known then
+          (RandOracle xs) ->
+            if all (`S.member` known) xs then
               recover (S.insert ref known) refs
             else
               recover known refs
@@ -171,19 +201,17 @@ showProg prog = evalState doit prog
     doit = do
       refs  <- topoSort
       lines <- unlines <$> mapM showLine refs
-      let output = "output (" ++ concat (map show (p_outputs prog)) ++ ")\n"
+      let output = "output(" ++ intercalate ", " (map show (p_outputs prog)) ++ ")\n"
       return (lines ++ output)
 
     showLine :: Ref -> P String
     showLine ref = do
       expr <- ref2Expr ref
       case expr of
-        (Xor x y) -> do
-          return $ concat [show ref, " = Xor (", show x, ", ", show y, ")"]
-        (Not x) -> do
-          return $ concat [show ref, " = not(", show x, ")"]
-        (RandOracle x) -> do
-          return $ concat [show ref, " = RO(", show x, ")"]
+        (Plus xs) -> do
+          return $ concat [show ref, " = Plus(", intercalate ", " (map show xs), ")"]
+        (RandOracle xs) -> do
+          return $ concat [show ref, " = H(", intercalate ", " (map show xs), ")"]
         (Rand n) -> do
           return $ concat [show ref, " <- $"]
 
@@ -208,10 +236,9 @@ topoSort = do
       fold xs seen'
 
 getArgs :: Expr -> [Ref]
-getArgs (Xor x y)      = [x, y]
-getArgs (Not x)        = [x]
-getArgs (RandOracle x) = [x]
-getArgs (Rand _)       = []
+getArgs (Plus xs)       = xs
+getArgs (RandOracle xs) = xs
+getArgs (Rand _)        = []
 
 --------------------------------------------------------------------------------
 -- helpers
@@ -262,14 +289,11 @@ insertExpr expr = do
 rand :: Int -> P Ref
 rand n = insertExpr (Rand n)
 
-xor :: Ref -> Ref -> P Ref
-xor x y = insertExpr (Xor x y)
+plus :: [Ref] -> P Ref
+plus xs = insertExpr (Plus xs)
 
-not :: Ref -> P Ref
-not x = insertExpr (Not x)
-
-ro :: Ref -> P Ref
-ro x = insertExpr (RandOracle x)
+h :: [Ref] -> P Ref
+h xs = insertExpr (RandOracle xs)
 
 output :: [Ref] -> P ()
 output refs = modify $ \p -> p { p_outputs = p_outputs p ++ refs }
@@ -280,7 +304,7 @@ output refs = modify $ \p -> p { p_outputs = p_outputs p ++ refs }
 p1 = newProg $ do
   a <- rand 0
   b <- rand 1
-  c <- not b
-  d <- ro c
-  e <- xor a d
-  output [e]
+  c <- plus [a, b]
+  d <- h [c]
+  e <- plus [a, d]
+  output [c, e]
