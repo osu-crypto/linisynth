@@ -1,21 +1,6 @@
 from sage.all import *
 import copy
 
-F = GF(2)
-
-def mat(xs): return matrix(F, xs)
-def vec(xs): return vector(F, xs)
-
-class Constraint:
-    def __init__(self, t, Q, a):
-        self.t = t
-        self.Q = Q
-        self.a = a
-    def __repr__(self):
-        return "<{0.t}, {0.Q}, {0.a}>".format(self)
-    def lhs(self): return self.Q
-    def rhs(self): return self.a
-
 class Graph (dict):
     def __init__(self, vertices):
         for v in vertices:
@@ -33,7 +18,7 @@ class Graph (dict):
                 if v not in visited: queue.append(v)
 
 def usefulfor(x, a_inp):
-    A = matrix(filter(lambda r: r != vec(x), a_inp))
+    A = matrix(filter(lambda r: r != vector(x), a_inp))
     for v in A:
         Ap = matrix(filter(lambda r: r != v, A))
         if v in span(Ap):
@@ -72,5 +57,3 @@ def constraintInSpan(S, reachable):
             S.remove(c)
             return c
 
-test_m = mat([[1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1]])
-test_c = [Constraint(0, mat([[1,1,0]]), vec([0,0,1]))]
