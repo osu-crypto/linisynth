@@ -24,7 +24,8 @@ def usefulfor(x, a_inp):
         if v in span(Ap):
             yield v
 
-def normalize(M, C):
+def normalize(tup):
+    (M, C) = tup
     reachable = M.rows()
     S = copy.copy(C)
     G = Graph(M)

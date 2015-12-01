@@ -2,10 +2,11 @@ from sage.all import *
 from linicrypt.normalize import *
 from linicrypt.program import *
 
-f = GF(2)
+def res(a1, a2, b1, b2):
+    pass
 
 def security_game(Gb, a1, a2, b1, b2):
-    e = env(f)
+    e = env(GF(2))
     A     = Rand(e)
     B     = Rand(e)
     delta = Rand(e)
@@ -17,7 +18,7 @@ def security_game(Gb, a1, a2, b1, b2):
     return e
 
 def test():
-    e = env(f)
+    e = env(GF(2))
     v1 = Rand(e)
     v2 = Rand(e)
     v3 = Plus(e, v1, v2)
