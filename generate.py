@@ -22,7 +22,7 @@ def generate_security_game(a1, a2, b1, b2):
     A = Rand(e)
     B = Rand(e)
     d = Rand(e)
-    for (ep, F1, F2, C) in generate_Gb(e, num_lines=8):
+    for (ep, F1, F2, C) in generate_Gb(e, num_lines=8, starting_at=4):
         Ap = Plus(ep, A, d) if a1 + b1 else A
         Bp = Plus(ep, B, d) if a2 + b2 else B
         Output(ep, Ap, Bp, F1, F2, H(d))
@@ -37,27 +37,19 @@ def generate_line(n):
             for xs in itertools.combinations(range(n), 2):
                 yield lambda e: Plus(e, xs)
         if typ == "H":
-            for x in range(n)
+            for x in range(n):
                 yield lambda e: H(e, [x])
 
-def generate_Gb(e, num_lines=8):
-    line_gens = [ generate_line(3 + i) for i in range(num_lines) ]
-
-    ep = copy.deepcopy(e)
-    lines = map(lambda g: g.next()(ep), line_gens)
-    
-    # output last 3 lines
-
-    for l1 in generate_line(args):
-        for l2 in generate_line(args):
-            for l3 in generate_line(args):
-                for l4 in generate_line(args):
-                    def prog(e):
-                        ep = copy.deepcopy(e)
-                        r1 = l1(ep)
-                        r2 = l2(ep)
-                        r3 = l3(ep)
-                        r4 = l4(ep)
-                        for outs in itertools.combinations([r1,r2,r3,r4], 3):
-                            ep.output = outs
-                        yield ep
+def generate_Gb(e, num_lines, starting_at=0):
+    def rec(n, lines):
+        if n == 0:
+            ep = copy.deepcopy(e)
+            lines = map(lambda line: line(ep), lines)
+            t = len(lines)
+            ep.output = [t, t-1, t-2]
+            return [ep] + lines[-3:]
+        res = []
+        for l in generate_line(n + starting_at-1):
+            res.extend(rec(n-1, lines + [l]))
+        return res
+    return rec(num_lines, [])

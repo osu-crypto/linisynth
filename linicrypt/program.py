@@ -32,8 +32,8 @@ class env (dict):
         return self[ref]    
 
     def insert(self, elem):
-        inv = {v:k for k,v in self.iteritems()}
-        if elem in inv: return inv[elem]
+        # inv = {v:k for k,v in self.iteritems()}
+        # if str(elem) in inv: return inv[elem]
         r = self.next_ref()
         self[r] = elem
         return r
