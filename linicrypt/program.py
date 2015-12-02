@@ -1,6 +1,5 @@
 # dsl for building linicrypt programs
 from sage.all import *
-from linicrypt.types import *
 
 class constraint:
     def __init__(self, t, Q, a):
@@ -66,6 +65,10 @@ class env (dict):
                 raise Exception("Unknown instruction: " + expr[0])
             mapping[ref] = len(A)
             A.append(row)
+        # TODO: REMOVE LINES THAT AREN'T IN OUTPUT
+        # for ref in self.iterkeys():
+            # if not ref in self.output:
+                 
         return (matrix(self.field, A), C)
     
 def Rand(env):

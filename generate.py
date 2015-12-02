@@ -17,33 +17,37 @@ def test():
 def res(a1, a2, b1, b2):
     pass
 
-# def generate_security_game(a1, a2, b1, b2):
-def generate_security_game():
+def generate_security_game(a1, a2, b1, b2):
     e = env(GF(2))
     A = Rand(e)
     B = Rand(e)
     d = Rand(e)
-    # for (ep, F1, F2, C) in generate_Gb(e, b1, b2, A, B, d):
-    for (ep, F1, F2, C) in generate_Gb(e, A, B, d):
+    for (ep, F1, F2, C) in generate_Gb(e, num_lines=8):
         Ap = Plus(ep, A, d) if a1 + b1 else A
         Bp = Plus(ep, B, d) if a2 + b2 else B
-        Cp = Plus(ep, C, d) if 1 + res(a1, a2, b1, b2) else C
-        Output(ep, Ap, Bp, F1, F2, H(Cp))
+        Output(ep, Ap, Bp, F1, F2, H(d))
         yield ep
 
 def correctness(e, a1, a2, b1, b2):
     pass
 
-def generate_line(args):
+def generate_line(n):
     for typ in ["Plus", "H"]:
         if typ == "Plus":
-            for xs in itertools.combinations(args, 2):
+            for xs in itertools.combinations(range(n), 2):
                 yield lambda e: Plus(e, xs)
         if typ == "H":
-            for xs in itertools.combinations(args, 1):
-                yield lambda e: H(e, xs)
+            for x in range(n)
+                yield lambda e: H(e, [x])
 
-def generate_Gb(b1, b2, *args):
+def generate_Gb(e, num_lines=8):
+    line_gens = [ generate_line(3 + i) for i in range(num_lines) ]
+
+    ep = copy.deepcopy(e)
+    lines = map(lambda g: g.next()(ep), line_gens)
+    
+    # output last 3 lines
+
     for l1 in generate_line(args):
         for l2 in generate_line(args):
             for l3 in generate_line(args):
