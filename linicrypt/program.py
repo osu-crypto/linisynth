@@ -32,8 +32,8 @@ class env (dict):
         return self[ref]    
 
     def insert(self, elem):
-        # inv = {v:k for k,v in self.iteritems()}
-        # if str(elem) in inv: return inv[elem]
+        inv = {str(v):k for k,v in self.iteritems()}
+        if str(elem) in inv: return inv[str(elem)]
         r = self.next_ref()
         self[r] = elem
         return r
@@ -54,7 +54,8 @@ class env (dict):
                 row = vector(self.field, [0]*n)
                 row[fresh_ctr] = 1
                 fresh_ctr += 1
-                Q = [ A[mapping[arg]] for arg in expr[1] ]
+                print expr[1]
+                Q = [ A[mapping[arg] ] for arg in expr[1] ]
                 C.append(constraint(t_ctr, Q, row))
                 t_ctr += 1
             elif expr[0] == "Plus":
@@ -65,11 +66,11 @@ class env (dict):
                 raise Exception("Unknown instruction: " + expr[0])
             mapping[ref] = len(A)
             A.append(row)
-        # TODO: REMOVE LINES THAT AREN'T IN OUTPUT
-        # for ref in self.iterkeys():
-            # if not ref in self.output:
-                 
-        return (matrix(self.field, A), C)
+        Ap = []
+        for ref in self.iterkeys():
+            if ref in self.output:
+                Ap.append( A[ mapping[ref] ])
+        return (matrix(self.field, Ap), C)
     
 def Rand(env):
     ident = env.next_rand_id()
