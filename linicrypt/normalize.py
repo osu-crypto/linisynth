@@ -4,7 +4,9 @@ import copy
 class Graph (dict):
     def __init__(self, vertices):
         for v in vertices:
-            self[str(v)] = dict()
+            self.add_vertex(v)
+    def add_vertex(self, vtx):
+        self[str(vtx)] = dict()
     def add_edge(self, source, target, color):
         self[str(source)][str(target)] = color
     def path(self, source, success_func):
@@ -24,11 +26,30 @@ def usefulfor(x, a_inp):
         if v in span(Ap):
             yield v
 
+def ind_random(tup):
+    (M, C) = tup
+    reachable = M.rows()
+    S = copy.copy(C)
+    G = Graph(M)
+    for c in C: G.add_vertex(c.rhs())
+    done = False
+    while not done:
+        c = constraintInSpan(S, reachable)
+        if not c: 
+            done = True
+        else:
+            if c.a in span(reachable):
+                return False
+            reachable.append(c.a)
+    (nrows, ncols) = M.dimensions()
+    return M.rank() == nrows
+
 def normalize(tup):
     (M, C) = tup
     reachable = M.rows()
     S = copy.copy(C)
     G = Graph(M)
+    for c in C: G.add_vertex(c.rhs())
     done = False
     while not done:
         c = constraintInSpan(S, reachable)
@@ -41,13 +62,11 @@ def normalize(tup):
             for v in usefulfor(c.a, reachable):
                 G.add_edge(v, c.a, "red")
             reachable.append(c.a)
-
     def keepConstraint(c):
         ok = True
         ok = ok and all([q in span(reachable) for q in c.Q]) 
         ok = ok and G.path(c.a, lambda x: "red" in G[x].values())
         return ok
-
     Cp = filter(keepConstraint, C)
     return (M, Cp)
 

@@ -18,6 +18,10 @@ class env (dict):
         self.output = []
         self.field = field
 
+    def __repr__(self):
+        dict_str = super(env, self).__repr__()
+        return dict_str + " output = " + str(self.output)
+
     def next_rand_id(self):
         tmp = self._next_rand_id
         self._next_rand_id += 1
@@ -32,8 +36,6 @@ class env (dict):
         return self[ref]    
 
     def insert(self, elem):
-        inv = {str(v):k for k,v in self.iteritems()}
-        if str(elem) in inv: return inv[str(elem)]
         r = self.next_ref()
         self[r] = elem
         return r
@@ -54,18 +56,18 @@ class env (dict):
                 row = vector(self.field, [0]*n)
                 row[fresh_ctr] = 1
                 fresh_ctr += 1
-                print expr[1]
-                Q = [ A[mapping[arg] ] for arg in expr[1] ]
+                Q = [ coef*A[mapping[arg] ] for (coef, arg) in expr[1] ]
                 C.append(constraint(t_ctr, Q, row))
                 t_ctr += 1
             elif expr[0] == "Plus":
                 row = vector(self.field, [0]*n)
-                for arg in expr[1]:
-                    row += A[mapping[arg]]
+                for (coef, arg) in expr[1]:
+                    row += coef * A[mapping[arg]]
             else:
                 raise Exception("Unknown instruction: " + expr[0])
             mapping[ref] = len(A)
             A.append(row)
+        # return (A, C)
         Ap = []
         for ref in self.iterkeys():
             if ref in self.output:
@@ -77,12 +79,20 @@ def Rand(env):
     return env.insert(("Rand", ident))
 
 def Plus(env, *args):
-    return env.insert(("Plus", args))
+    return env.insert(("Plus", with_coeffs(args)))
 
 def H(env, *args):
-    return env.insert(("H", args))
+    return env.insert(("H", with_coeffs(args)))
 
 def Output(env, *args):
     assert(not len(env.output))
     env.output = args
 
+def with_coeffs(args):
+    ret = []
+    for x in args:
+        if isinstance(x, (list, tuple)):
+            ret.append(x)
+        else:
+            ret.append((1,x))
+    return ret
