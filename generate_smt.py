@@ -1,14 +1,15 @@
 #/usr/bin/env python2
 
-from pysmt.shortcuts import Not, Or, Xor, And, And, Xor, Int, FreshSymbol, Solver, Equals, Implies
+from pysmt.shortcuts import *
 from pysmt.typing import BOOL
 import string
 import itertools
 
-TRUE  = FreshSymbol(BOOL)
-FALSE = FreshSymbol(BOOL)
+T = TRUE()
+F = FALSE()
 
-def mat(nrows, ncols): return [ [ FreshSymbol(BOOL) for x in range(ncols) ] for y in range(nrows) ]
+def mat(nrows, ncols, premapping={}): 
+    return [ premapping[y] if y in premapping else [ FreshSymbol(BOOL) for x in range(ncols) ] for y in range(nrows) ]
 
 def transpose(A):
     return [ [ A[i][j] for i in range(len(A)) ] for j in range(len(A[0])) ]
@@ -46,21 +47,21 @@ def generate_constraints(n_constraints=4, arity=1, starting_at=3):
                 if j < starting_at + i:
                     q.append( FreshSymbol(BOOL) )
                 else:
-                    q.append( FALSE )
+                    q.append( F )
             lhs.append(q)
         rhs = []
         for j in range(n_fresh):
             if j == i + starting_at:
                 rhs.append( FreshSymbol(BOOL) )
             else:
-                rhs.append( FALSE )
+                rhs.append( F )
         result.append(( lhs, rhs ))
     return result
 
 def security(gb_view, Cs, B, nzeroes, delta_row):
     Gbp = matrix_mul(gb_view, B)
     mat_constraint  = And(*[ right_zeroes(row, nzeroes) for row in Gbp ] )
-    cons_constraint = TRUE
+    cons_constraint = T
     for C in Cs:
         lhs   = [ matrix_mul([q],B)[0] for q in C[0] ]
         [rhs] = matrix_mul([C[1]], B)
@@ -77,26 +78,35 @@ def view(Gb, width):
             row = []
             for l in range(width):
                 if l == k or (l == 3 and alphas[k]):
-                    row.append( TRUE )
+                    row.append( T )
                 else:
-                    row.append( FALSE )
+                    row.append( F )
             output.append(row)
-        output.append([ TRUE if x == k else FALSE for x in range(width) ])
+        output.append([ T if x == k else F for x in range(width) ])
         output.extend( Gb[:-1] ) 
         yield output
 
 def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
+    width   = input_bits + 1 + h_calls_gb
+    nzeroes = h_calls_gb + 1 - size - h_calls_ev
+
     # variables
-    width = input_bits + 1 + h_calls_gb
     gb = [ mat(size, width) for i in range(4) ]
     cs = [ generate_constraints(n_constraints=h_calls_gb, arity=h_arity) for i in range(4) ]
-    bs = [ [ mat(width, width) for i in range(4) ] for j in range(4) ]
+    bs = [ [ mat(width, width, {2:[F]*6+[T]}) for i in range(4) ] for j in range(4) ]
+    rs = [ mat(1, width) for j in range(4) ]
+
     # constraints
     bs_invertable = And(*[ And(*[ determinant(b) for b in bi ]) for bi in bs ])
-    nzeroes = h_calls_gb + 1 - size - h_calls_ev
-    sec_constraints = TRUE
+
+    sec_constraints = T
     for i in range(4):
         for g in view(gb[i], width):
             s = security( g, cs[i], bs[i][j], nzeroes, input_bits + 1 )
             sec_constraints = And(sec_constraints, s)
-    return And(bs_invertable, sec_constraints)
+
+    # the formula
+    return And(*[ bs_invertable, sec_constraints ])
+
+if __name__ == "__main__":
+    generate_gb()
