@@ -11,8 +11,16 @@ F = FALSE()
 def mat(nrows, ncols, premapping={}): 
     return [ premapping[y] if y in premapping else [ FreshSymbol(BOOL) for x in range(ncols) ] for y in range(nrows) ]
 
+def gate(i, j):
+    bs = bits(i^j)
+    return bs[0] and bs[1]
+
 def transpose(A):
     return [ [ A[i][j] for i in range(len(A)) ] for j in range(len(A[0])) ]
+
+def bits(x):
+    assert(x < 4)
+    return [ x&1, x&2 ]
 
 def matrix_mul(A, B):
     assert(len(A[0]) == len(B))
@@ -33,77 +41,93 @@ def determinant(A):
         zs.append( And( *xs ) )
     return reduce( Xor, zs )
 
-def right_zeroes(v, n=3):
-    return Not(Or(*v[-n:]))
+def right_zeros(v, num_nonzero):
+    return Not(Or(*v[num_nonzero:]))
 
 def generate_constraints(n_constraints=4, arity=1, starting_at=3):
     n_fresh = n_constraints + starting_at
-    result = []
+    cs = []
     for i in range(n_constraints):
         lhs = []
         for k in range(arity):
-            q = []
-            for j in range(n_fresh):
-                if j < starting_at + i:
-                    q.append( FreshSymbol(BOOL) )
-                else:
-                    q.append( F )
+            q = [ FreshSymbol(BOOL) if j < starting_at else F for j in range(n_fresh) ]
             lhs.append(q)
-        rhs = []
-        for j in range(n_fresh):
-            if j == i + starting_at:
-                rhs.append( FreshSymbol(BOOL) )
-            else:
-                rhs.append( F )
-        result.append(( lhs, rhs ))
-    return result
+        rhs = [ FreshSymbol(BOOL) if j == i + starting_at else F for j in range(n_fresh) ] 
+        cs.append(( lhs, rhs ))
+    return cs
 
-def security(gb_view, Cs, B, nzeroes, delta_row):
+def view(Gb, i, j):
+    width  = len(Gb[0][0])
+    alphas = bits(j)
+    v = [] 
+    for k in range(2):
+        row = [ T if l == k or (l == 3 and alphas[k]) else F for l in range(width) ]
+        v.append(row)
+    v.append([ T if x == k else F for x in range(width) ])
+    v.extend( Gb[i][:-1] ) # Gb[i] without its output row
+    return v
+
+def security(gb_view, Cs, B, reach, delta):
     Gbp = matrix_mul(gb_view, B)
-    mat_constraint  = And(*[ right_zeroes(row, nzeroes) for row in Gbp ] )
+    mat_constraint  = And(*[ right_zeros(row, reach) for row in Gbp ] )
     cons_constraint = T
     for C in Cs:
         lhs   = [ matrix_mul([q],B)[0] for q in C[0] ]
         [rhs] = matrix_mul([C[1]], B)
-        p = And(*[ right_zeroes(v, nzeroes) for v in lhs ])
-        q = right_zeroes( rhs, nzeroes )
+        p = And(*[ right_zeros(v, reach) for v in lhs ])
+        q = right_zeros( rhs, reach )
         cons_constraint = And(cons_constraint, Implies(p, q))
-    basis_constraint = Not( right_zeroes( B[ delta_row ], nzeroes ))
+    basis_constraint = Not( right_zeros( B[delta], reach ))
     return And(*[ mat_constraint, cons_constraint, basis_constraint ])
 
-def view(Gb, width):
-    for alphas in itertools.product([False, True], [False, True]):
-        output = [] 
-        for k in range(2):
-            row = []
-            for l in range(width):
-                if l == k or (l == 3 and alphas[k]):
-                    row.append( T )
-                else:
-                    row.append( F )
-            output.append(row)
-        output.append([ T if x == k else F for x in range(width) ])
-        output.extend( Gb[:-1] ) 
-        yield output
+# checks that A is the identity matrix with optional zeroes to the right
+def is_id_matrix(A):
+    const = T
+    for row in range( len(A) ):
+        for col in range( len(A[row]) ):
+            if row == col:
+                const = And( const, A[row][col] )
+            else:
+                const = And( const, Not(A[row][col]) )
+    return const
+
+
+def correctness(Gb, Gb_C, B, Ev, Ev_C, delta, width, reach):
+    const = T
+    for i in range(4):
+        for j in range(4):
+            g = view(Gb, i, j)
+            X = matrix_mul(g, B[i][j])
+            view_ok = is_id_matrix(X)
+
+            c    = Xor(g[delta], g[-1]) if gate(i,j) else g[-1]
+            [cp] = matrix_mul([c], B[i][j])
+            ev_correct = vec_eq(cp, Ev[j])
+
+
 
 def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
-    width   = input_bits + 1 + h_calls_gb
-    nzeroes = h_calls_gb + 1 - size - h_calls_ev
+    width = input_bits + 1 + h_calls_gb
+    reach = size + h_calls_ev - h_calls_gb - 1
+    delta = input_bits + 1
 
     # variables
     gb = [ mat(size, width) for i in range(4) ]
     cs = [ generate_constraints(n_constraints=h_calls_gb, arity=h_arity) for i in range(4) ]
-    bs = [ [ mat(width, width, {2:[F]*6+[T]}) for i in range(4) ] for j in range(4) ]
-    rs = [ mat(1, width) for j in range(4) ]
+    bs = [ [ mat(width, width, {2:[F]*6+[T]}) for j in range(4) ] for i in range(4) ]
+    rs = [ mat(output_bits, size - 1 + h_calls_ev) for i in range(4) ]
 
     # constraints
     bs_invertable = And(*[ And(*[ determinant(b) for b in bi ]) for bi in bs ])
 
     sec_constraints = T
     for i in range(4):
-        for g in view(gb[i], width):
-            s = security( g, cs[i], bs[i][j], nzeroes, input_bits + 1 )
+        for j in range(4):
+            g = view(gb, i, j)
+            s = security(g, cs[i], bs[i][j], reach, delta)
             sec_constraints = And(sec_constraints, s)
+
+    correct = correctness(gb, cs, bs, rs, delta, width, reach)
 
     # the formula
     return And(*[ bs_invertable, sec_constraints ])
