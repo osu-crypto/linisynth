@@ -6,6 +6,8 @@ import string
 import itertools
 import copy
 
+# TODO: check that shit works: need pretty printer. then check individual parts.
+
 T = TRUE()
 F = FALSE()
 
@@ -131,10 +133,13 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, delta, width, reach):
             c = Xor(g[delta], g[-1]) if gate(i,j) else g[-1]
             [cp] = matrix_mul([c], B[i][j])
             ev_correct = vec_eq(cp, Ev[j])
-            Gb_Cp = [ mul_constraint(c, B[i][j]) for c in Gb_C[i] ]
             # match each oracle query to one in the garbler
-            one_oracle_call_the_same = Or( *map(lambda c: constraint_eq(c, Ev_C[j][0]), Gb_Cp))
-            return And(*[view_ok, ev_correct, one_oracle_call_the_same])
+            Gb_Cp = [ mul_constraint(c, B[i][j]) for c in Gb_C[i] ]
+            match_oracle_calls = T
+            for ev_c in Ev_C[j]:
+                c = Or( *map(lambda c: constraint_eq(c, Ev_C[j][0]), Gb_Cp))
+                match_oracle_calls = And(match_oracle_calls, c)
+            return And(*[view_ok, ev_correct, match_oracle_calls])
 
 def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
     width = input_bits + 1 + h_calls_gb
@@ -161,7 +166,8 @@ def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_
     correct = correctness(gb, cs, bs, rs, ec, delta, width, reach)
 
     # the formula
-    return And(*[ bs_invertable, sec_constraints, correct ])
+    # return And(*[ bs_invertable, sec_constraints, correct ])
+    return And(*[ bs_invertable ])
 
 if __name__ == "__main__":
     generate_gb()
