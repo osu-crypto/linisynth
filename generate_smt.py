@@ -4,6 +4,7 @@ from pysmt.shortcuts import *
 from pysmt.typing import BOOL
 import string
 import itertools
+import copy
 
 T = TRUE()
 F = FALSE()
@@ -91,6 +92,34 @@ def is_id_matrix(A):
                 const = And( const, Not(A[row][col]) )
     return const
 
+# multiply a constraint typle by a basis change
+def mul_constraint(C, B):
+    (lhs, rhs) = C
+    lhsp = []
+    for q in lhs:
+        [qp] = matrix_mul([q], B)
+        lhsp.append(qp)
+    [rhsp] = matrix_mul([rhs], B)
+    return (lhsp, rhsp)
+
+def vec_eq(v, w):
+    vp = copy.copy(v)
+    wp = copy.copy(w)
+    if len(v) < len(w):
+        for i in range(len(w) - len(v)):
+            vp.append(F)
+    elif len(w) < len(v):
+        for i in range(len(v) - len(w)):
+            wp.append(F)
+    assert(len(vp) == len(wp))
+    cs = [ Not(Xor(x,y)) for (x,y) in zip(vp,wp) ]
+    return And(*cs)
+
+def constraint_eq(C, D):
+    assert(len(C[0]) == len(D[0]))
+    cs = [ vec_eq(C[0][i], D[0][i]) for i in range(len(C[0])) ]
+    cs += [ vec_eq(C[1], D[1]) ]
+    return And(*cs)
 
 def correctness(Gb, Gb_C, B, Ev, Ev_C, delta, width, reach):
     const = T
@@ -99,12 +128,13 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, delta, width, reach):
             g = view(Gb, i, j)
             X = matrix_mul(g, B[i][j])
             view_ok = is_id_matrix(X)
-
-            c    = Xor(g[delta], g[-1]) if gate(i,j) else g[-1]
+            c = Xor(g[delta], g[-1]) if gate(i,j) else g[-1]
             [cp] = matrix_mul([c], B[i][j])
             ev_correct = vec_eq(cp, Ev[j])
-
-
+            Gb_Cp = [ mul_constraint(c, B[i][j]) for c in Gb_C[i] ]
+            # match each oracle query to one in the garbler
+            one_oracle_call_the_same = Or( *map(lambda c: constraint_eq(c, Ev_C[j][0]), Gb_Cp))
+            return And(*[view_ok, ev_correct, one_oracle_call_the_same])
 
 def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
     width = input_bits + 1 + h_calls_gb
@@ -115,7 +145,8 @@ def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_
     gb = [ mat(size, width) for i in range(4) ]
     cs = [ generate_constraints(n_constraints=h_calls_gb, arity=h_arity) for i in range(4) ]
     bs = [ [ mat(width, width, {2:[F]*6+[T]}) for j in range(4) ] for i in range(4) ]
-    rs = [ mat(output_bits, size - 1 + h_calls_ev) for i in range(4) ]
+    rs = [ sum( mat(output_bits, size - 1 + h_calls_ev), []) for i in range(4) ]
+    ec = [ generate_constraints(n_constraints=1, arity=h_arity) for i in range(4) ]
 
     # constraints
     bs_invertable = And(*[ And(*[ determinant(b) for b in bi ]) for bi in bs ])
@@ -127,10 +158,10 @@ def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_
             s = security(g, cs[i], bs[i][j], reach, delta)
             sec_constraints = And(sec_constraints, s)
 
-    correct = correctness(gb, cs, bs, rs, delta, width, reach)
+    correct = correctness(gb, cs, bs, rs, ec, delta, width, reach)
 
     # the formula
-    return And(*[ bs_invertable, sec_constraints ])
+    return And(*[ bs_invertable, sec_constraints, correct ])
 
 if __name__ == "__main__":
     generate_gb()
