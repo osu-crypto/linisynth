@@ -6,43 +6,69 @@ import string
 import itertools
 import copy
 
-# TODO: check that shit works: need pretty printer. then check individual parts.
-
 T = TRUE()
 F = FALSE()
 
-def mat(nrows, ncols, premapping={}): 
-    return [ premapping[y] if y in premapping else [ FreshSymbol(BOOL) for x in range(ncols) ] for y in range(nrows) ]
+class smatrix (list):
+    def __init__(self, nrows, ncols, premapping={}, initialize=True):
+        self.nrows = nrows
+        self.ncols = ncols
+        for y in range(nrows):
+            if initialize:
+                if y in premapping:
+                    assert( ncols == len(premapping[y]) )
+                    self.append( premapping[y] )
+                else:
+                    self.append([ FreshSymbol(BOOL) for x in range(ncols) ])
+            else:
+                self.append([ None for x in range(ncols) ])
+
+    def dims(self):
+        return (self.nrows, self.ncols)
+
+    def transpose(self):
+        A_t = smatrix(self.ncols, self.nrows, initialize=False)
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                A_t[j][i] = self[i][j]
+        return A_t
+
+    def mul(self, A):
+        assert(self.ncols == A.nrows)
+        A_t = A.transpose()
+        C   = smatrix(self.ncols, A.nrows, initialize=False)
+        for i in range(self.nrows):
+            for j in range(At.nrows):
+                z = reduce( Xor, [ And(x, y) for (x, y) in zip(self[i], A_t[j]) ])
+                C[i][j] = z
+        return out
+
+    def det(self):
+        assert(self.nrows == self.ncols)
+        zs = []
+        for pi in itertools.permutations(range(self.nrows)):
+            xs = [ self[i][pi[i]] for i in range(self.nrows) ]
+            zs.append( And( *xs ) )
+        return reduce( Xor, zs )
+
+    def reverse_mapping(self, solver):
+        out = []
+        for i in range(self.nrows):
+            out.append([])
+            for j in range(self.ncols):
+                if solver.get_value(self[i][j]).is_true():
+                    out[i].append( 1 )
+                else:
+                    out[i].append( 0 )
+        return out
 
 def gate(i, j):
     bs = bits(i^j)
-    return bs[0] and bs[1]
-
-def transpose(A):
-    return [ [ A[i][j] for i in range(len(A)) ] for j in range(len(A[0])) ]
+    return bs[0] and bs[1] 
 
 def bits(x):
     assert(x < 4)
     return [ x&1, x&2 ]
-
-def matrix_mul(A, B):
-    assert(len(A[0]) == len(B))
-    Bt = transpose(B)
-    out = []
-    for i in range(len(A)):
-        out.append([])
-        for j in range(len(Bt)):
-            z = reduce( Xor, [ And(x, y) for (x, y) in zip(A[i], Bt[j]) ])
-            out[i].append(z)
-    return out
-
-def determinant(A):
-    assert(len(A) == len(A[0]))
-    zs = []
-    for pi in itertools.permutations(range(len(A))):
-        xs = [ A[i][ pi[i] ] for i in range(len(A)) ]
-        zs.append( And( *xs ) )
-    return reduce( Xor, zs )
 
 def right_zeros(v, num_nonzero):
     return Not(Or(*v[num_nonzero:]))
@@ -146,28 +172,59 @@ def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_
     reach = size + h_calls_ev - h_calls_gb - 1
     delta = input_bits + 1
 
-    # variables
-    gb = [ mat(size, width) for i in range(4) ]
-    cs = [ generate_constraints(n_constraints=h_calls_gb, arity=h_arity) for i in range(4) ]
-    bs = [ [ mat(width, width, {2:[F]*6+[T]}) for j in range(4) ] for i in range(4) ]
-    rs = [ sum( mat(output_bits, size - 1 + h_calls_ev), []) for i in range(4) ]
-    ec = [ generate_constraints(n_constraints=1, arity=h_arity) for i in range(4) ]
+    params = { "size"       : size 
+             , "input_bits" : input_bits
+             , "output_bits": output_bits
+             , "h_arity"    : h_arity
+             , "h_calls_gb" : h_calls_gb
+             , "h_calls_ev" : h_calls_ev
+             , "width"      : width
+             , "reach"      : reach
+             , "delta"      : delta
+             }
 
-    # constraints
-    bs_invertable = And(*[ And(*[ determinant(b) for b in bi ]) for bi in bs ])
+    ################################################################################
+    ## variables
 
-    sec_constraints = T
-    for i in range(4):
-        for j in range(4):
-            g = view(gb, i, j)
-            s = security(g, cs[i], bs[i][j], reach, delta)
-            sec_constraints = And(sec_constraints, s)
+    # a garbling scheme for each i
+    # gb = [ smatrix( size, width ) for i in range(4) ]
+    # cs = [ generate_constraints( n_constraints=h_calls_gb, arity=h_arity ) for i in range(4) ]
 
-    correct = correctness(gb, cs, bs, rs, ec, delta, width, reach)
+    # a basis change for each (i,j)
+    bs = [ [ smatrix(width, width, {2:[F]*(width-1)+[T]}) for j in range(4) ] for i in range(4) ]
 
-    # the formula
+    # an evaluation scheme for each j
+    # ev = [ sum( mat(output_bits, size - 1 + h_calls_ev), []) for i in range(4) ]
+    # ec = [ generate_constraints( n_constraints=1, arity=h_arity ) for i in range(4) ]
+
+    ################################################################################
+    ## constraints
+
+    bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
+
+    # sec_constraints = T
+    # for i in range(4):
+        # for j in range(4):
+            # g = view(gb, i, j)
+            # s = security(g, cs[i], bs[i][j], reach, delta)
+            # sec_constraints = And(sec_constraints, s)
+
+    # correct = correctness(gb, cs, bs, ev, ec, delta, width, reach)
+
+    ################################################################################
+    ## the formula
+
     # return And(*[ bs_invertable, sec_constraints, correct ])
-    return And(*[ bs_invertable ])
+    return { "formula": And(*[ bs_invertable ])
+           , "bs"     : bs
+           }
+
+
+
+
 
 if __name__ == "__main__":
     generate_gb()
+
+
+
