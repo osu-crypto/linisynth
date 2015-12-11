@@ -9,17 +9,40 @@ import copy
 T = TRUE()
 F = FALSE()
 
+################################################################################
+## shortcuts
+
+# works
+def free_xor():
+    return generate_gb(h_calls_gb=0, h_calls_ev=0, size=0, gate=xor_gate)
+
+# works
+def half_gate():
+    return generate_gb(input_bits=2, h_calls_gb=4, h_calls_ev=2, size=2, gate=and_gate)
+
+def and_fan_in_3():
+    return generate_gb(input_bits=3, h_calls_gb=8, h_calls_ev=3, size=3, gate=and_gate_3)
+
+################################################################################
+## gates
+
 def and_gate(i, j):
-    bs = bits(i^j)
+    bs = bits(i^j, 2)
     return [bs[0] and bs[1]]
 
+def and_gate_3(i, j):
+    bs = bits(i^j, 3)
+    return [bs[0] and bs[1] and bs[2]]
+
 def xor_gate(i, j):
-    bs = bits(i^j)
+    bs = bits(i^j, 2)
     return [bs[0] ^ bs[1]]
 
-def bits(x):
-    assert(x < 4)
-    return [ (x&1) > 0, (x&2) > 0 ]
+################################################################################
+## stuff
+
+def bits(x, size):
+    return [ (x&(2**i)>0) for i in range(size) ]
 
 class smatrix (list):
     def __init__(self, nrows, ncols, premapping={}, initialize=True):
@@ -74,12 +97,12 @@ class smatrix (list):
         return out
 
     def concat_rows(self, rows):
-        assert(all(map(lambda r: len(r) <= self.ncols, rows)))
-        rows_ = copy.copy(rows)
-        out   = smatrix(self.nrows + len(rows), self.ncols, initialize=False)
-        elems = self + rows_
+        if not rows: return copy.deepcopy(self)
+        ncols = max(*([self.ncols] + map(len, rows)))
+        out   = smatrix(self.nrows + len(rows), ncols, initialize=False)
+        elems = copy.deepcopy(self) + copy.deepcopy(rows)
         for i in range(out.nrows):
-            while len(elems[i]) < self.ncols:
+            while len(elems[i]) < ncols:
                 elems[i].append( F )
             out[i] = elems[i]
         return out
@@ -166,7 +189,7 @@ def generate_constraints(n_constraints, arity, previous_fresh):
 def get_view(Gb, input_bits, i, j):
     width  = Gb[0].ncols
     size   = Gb[0].nrows
-    alphas = bits(i ^ j)
+    alphas = bits(i ^ j, input_bits)
     v = smatrix(input_bits, width, initialize=False)
     for row in range(input_bits):
         for col in range(width):
@@ -176,17 +199,17 @@ def get_view(Gb, input_bits, i, j):
                 v[row][col] = F
     return v.concat_rows( Gb[i][:-1] ) # Gb[i] without its output row
 
-def security(Gb, Gb_C, B, params):
-    secure = T
-    for i in range(4):
-        for j in range(4):
-            view   = get_view(gb, params['input_bits'], i, j)
-            s      = security(view, cs[i], bs[i][j], params['reach'], params['delta'])
-            secure = And(secure, s)
-    return secure
-
 def right_zeros(v, num_nonzero):
     return Not(Or(*v[num_nonzero:]))
+
+def security(Gb, Gb_C, B, params):
+    secure = T
+    for i in range(2**params['input_bits']):
+        for j in range(2**params['input_bits']):
+            view   = get_view(Gb, params['input_bits'], i, j)
+            s      = security_(view, Gb_C[i], B[i][j], params['reach'], params['delta'])
+            secure = And(secure, s)
+    return secure
 
 def security_(view, Cs, B, reach, delta):
     mat_const = And(*[ right_zeros(row, reach) for row in view.mul(B) ] )
@@ -202,18 +225,21 @@ def security_(view, Cs, B, reach, delta):
 def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
     output_rows = range( params['size'], params['size'] + params['output_bits'] )
     const = T
-    for i in range(4):
-        for j in range(4):
+    for i in range(2**params['input_bits']):
+        for j in range(2**params['input_bits']):
             # concat the output wires to the view, check that the top part is id, bottom eq to ev
             view = get_view(Gb, params['input_bits'], i, j)
             outs = Gb[i].with_rows(output_rows)
             for z in range(params['output_bits']):
                 if params['gate'](i,j)[z]:
                     outs[z][params['delta']] = Not( outs[z][params['delta']] )
+
             checkL = view.concat_rows(outs)
             checkL_ = checkL.mul(B[i][j])
-            checkR = id_matrix(view.nrows, view.ncols).concat_rows(Ev[j])
+            I = id_matrix(view.nrows, view.ncols)
+            checkR = I.concat_rows(Ev[j])
             ev_correct = checkL_.eq(checkR)
+
             # each evaluator oracle query equals one in the basis changed garble constraints
             Gb_Cp = [ c.basis_change(B[i][j]) for c in Gb_C[i] ]
             matched_oracles = T
@@ -239,30 +265,43 @@ def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h
              , "delta"       : delta
              , "gate"        : gate
              }
+    print "params =", params
     ################################################################################
     ## variables
     # a garbling scheme for each i
     gb = []
     cs = []
-    for i in range(4):
+    for i in range(2**input_bits):
         gb.append( smatrix( size + output_bits, width ))
         cs.append( generate_constraints( h_calls_gb, h_arity, input_bits+1 ))
     # a basis change for each (i,j)
     bs = []
-    for i in range(4):
+    bi = []
+    for i in range(2**input_bits):
         bs.append([])
-        for j in range(4):
-            b = smatrix( width, width, { 2:[F]*(width-1)+[T] })
+        bi.append([])
+        for j in range(2**input_bits):
+            b    = smatrix( width, width, { 2:[F]*(width-1)+[T] })
+            view = get_view(gb, input_bits, i, j)
+            b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
             bs[i].append(b)
+            bi[i].append(b_)
     # an evaluation scheme for each j
     ev = []
     ec = []
-    for j in range(4):
+    for j in range(2**input_bits):
         ev.append( smatrix( output_bits, size + input_bits + h_calls_ev ))
         ec.append( generate_constraints( h_calls_ev, h_arity, size + input_bits ))
     ################################################################################
     ## constraints
-    bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
+    # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
+    I = id_matrix( width, width )
+    bs_invertable = T
+    for i in range(2**input_bits):
+        for j in range(2**input_bits):
+            p = I.eq( bs[i][j].mul(bi[i][j]) )
+            bs_invertable = And(bs_invertable, p)
+    # bs_invertable = T
     secure        = security(gb, cs, bs, params)
     correct       = correctness(gb, cs, bs, ev, ec, params)
     ################################################################################
@@ -289,14 +328,15 @@ def check(scheme):
 
 def reverse_mapping( scheme, model ):
     scheme_ = {}
+    scheme_['params'] = scheme['params']
     scheme_['gb'] = []
     scheme_['ev'] = []
     scheme_['cs'] = []
     scheme_['ec'] = []
     scheme_['bs'] = []
-    for i in range(4):
+    for i in range(2**scheme['params']['input_bits']):
         scheme_['bs'].append([])
-        for j in range(4):
+        for j in range(2**scheme['params']['input_bits']):
             scheme_['bs'][i].append( scheme['bs'][i][j].reverse_mapping(model) )
         scheme_['gb'].append( scheme['gb'][i].reverse_mapping(model) )
         scheme_['ev'].append( scheme['ev'][i].reverse_mapping(model) )
@@ -308,6 +348,38 @@ def reverse_mapping( scheme, model ):
         for c in scheme['ec'][i]:
             scheme_['ec'][i].append( c.reverse_mapping(model) )
     return scheme_
+
+def print_mapping( scheme ):
+    params = scheme['params']
+    # name the fresh vars
+    gb_names = []
+    cur_inp = 'A'
+    for i in range(params['input_bits']):
+        gb_names.append(cur_inp)
+        cur_inp = chr(ord(cur_inp)+1)
+    gb_names.append('delta')
+    cur_inp = 0
+    for i in range(params['h_calls_gb']):
+        gb_names.append('H' + str(cur_inp))
+        cur_inp += 1
+
+    print gb_names
+    
+    ev_names = []
+    cur_inp = 'A'
+    for i in range(params['input_bits']):
+        ev_names.append(cur_inp)
+        cur_inp = chr(ord(cur_inp)+1)
+    cur_inp = 0
+    for i in range(params['size']):
+        ev_names.append('F' + str(cur_inp))
+        cur_inp += 1
+    cur_inp = 0
+    for i in range(params['h_calls_ev']):
+        ev_names.append('h' + str(cur_inp))
+        cur_inp += 1
+
+    print ev_names
 
 if __name__ == "__main__":
     generate_gb()
