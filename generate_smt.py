@@ -9,16 +9,17 @@ import copy
 T = TRUE()
 F = FALSE()
 
-def gate(i, j):
+def and_gate(i, j):
     bs = bits(i^j)
-    return bs[0] and bs[1] 
+    return [bs[0] and bs[1]]
+
+def xor_gate(i, j):
+    bs = bits(i^j)
+    return [bs[0] ^ bs[1]]
 
 def bits(x):
     assert(x < 4)
-    return [ x&1, x&2 ]
-
-def right_zeros(v, num_nonzero):
-    return Not(Or(*v[num_nonzero:]))
+    return [ (x&1) > 0, (x&2) > 0 ]
 
 class smatrix (list):
     def __init__(self, nrows, ncols, premapping={}, initialize=True):
@@ -73,45 +74,53 @@ class smatrix (list):
         return out
 
     def concat_rows(self, rows):
-        assert(all(map(lambda r: len(r) == self.ncols, rows)))
+        assert(all(map(lambda r: len(r) <= self.ncols, rows)))
+        rows_ = copy.copy(rows)
         out   = smatrix(self.nrows + len(rows), self.ncols, initialize=False)
-        elems = self + rows
+        elems = self + rows_
         for i in range(out.nrows):
+            while len(elems[i]) < self.ncols:
+                elems[i].append( F )
             out[i] = elems[i]
         return out
 
-    # checks that self is the identity matrix with optional zeroes to the right
-    def is_id_matrix(self):
-        c = T
-        for row in range( self.nrows ):
-            for col in range( self.ncols ):
-                if row == col:
-                    c = And( c, self[row][col] )
-                else:
-                    c = And( c, Not( self[row][col] ))
-        return c
-
+    # adds zero cols as necessary
     def eq(self, other):
         assert(self.nrows == other.nrows)
-        self_  = copy.deepcopy(self)
-        other_ = copy.deepcopy(other)
-        if self.ncols < other.ncols:
-            self_.ncols = other.ncols
-            for i in range(self.nrows):
-                for j in range(other.ncols - self.ncols):
-                    self_[i].append(F)
-        elif other.ncols < self.ncols:
-            other_.ncols = self.ncols
-            for i in range(other.nrows):
-                for j in range(self.ncols - other.ncols):
-                    other_[i].append(F)
-        assert(self_.dims() == other_.dims())
         c = T
-        for i in range(self_.nrows):
-            for j in range(self_.ncols):
-                p = Not(Xor( self_[i][j], other_[i][j] ))
-                c = And(c,p)
+        for i in range(self.nrows):
+            p = vec_eq(self[i], other[i])
+            c = And(c,p)
         return c
+
+    def with_rows(self, rows):
+        out = smatrix( len(rows), self.ncols, initialize=False )
+        for (i, row) in zip(range(len(rows)), rows):
+            out[i] = copy.copy(self[row])
+        return out
+
+def id_matrix(nrows, ncols):
+    I = smatrix(nrows, ncols)
+    for row in range( nrows ):
+        for col in range( ncols ):
+            if row == col:
+                I[row][col] = T
+            else:
+                I[row][col] = F
+    return I
+
+def vec_eq(v, w):
+    vp = copy.copy(v)
+    wp = copy.copy(w)
+    if len(v) < len(w):
+        for i in range(len(w) - len(v)):
+            vp.append(F)
+    elif len(w) < len(v):
+        for i in range(len(v) - len(w)):
+            wp.append(F)
+    assert(len(vp) == len(wp))
+    cs = [ Not(Xor(x,y)) for (x,y) in zip(vp,wp) ]
+    return And(*cs)
 
 class constraint:
     def __init__(self, lhs, rhs):
@@ -157,7 +166,7 @@ def generate_constraints(n_constraints, arity, previous_fresh):
 def get_view(Gb, input_bits, i, j):
     width  = Gb[0].ncols
     size   = Gb[0].nrows
-    alphas = bits(j)
+    alphas = bits(i ^ j)
     v = smatrix(input_bits, width, initialize=False)
     for row in range(input_bits):
         for col in range(width):
@@ -167,7 +176,19 @@ def get_view(Gb, input_bits, i, j):
                 v[row][col] = F
     return v.concat_rows( Gb[i][:-1] ) # Gb[i] without its output row
 
-def security(view, Cs, B, reach, delta):
+def security(Gb, Gb_C, B, params):
+    secure = T
+    for i in range(4):
+        for j in range(4):
+            view   = get_view(gb, params['input_bits'], i, j)
+            s      = security(view, cs[i], bs[i][j], params['reach'], params['delta'])
+            secure = And(secure, s)
+    return secure
+
+def right_zeros(v, num_nonzero):
+    return Not(Or(*v[num_nonzero:]))
+
+def security_(view, Cs, B, reach, delta):
     mat_const = And(*[ right_zeros(row, reach) for row in view.mul(B) ] )
     con_const = T
     for C in Cs:
@@ -178,43 +199,54 @@ def security(view, Cs, B, reach, delta):
     basis_const = Not( right_zeros( B[delta], reach ))
     return And(*[ mat_const, con_const, basis_const ])
 
-def correctness(Gb, Gb_C, B, Ev, Ev_C, delta, width, reach):
+def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
+    output_rows = range( params['size'], params['size'] + params['output_bits'] )
     const = T
     for i in range(4):
         for j in range(4):
-            # the basis changed garbler view is the identity matrix
-            view_ok = get_view(Gb,i,j).mul(B[i][j]).is_id_matrix()
-
-            g  = Gb[i]
-            C  = Xor(g[delta], g[-1]) if gate(i,j) else g[-1]
-            C_ = C.mul(B[i][j])
-            ev_correct = C_.eq(
-            ev_correct = vec_eq(cp, Ev[j])
-
+            # concat the output wires to the view, check that the top part is id, bottom eq to ev
+            view = get_view(Gb, params['input_bits'], i, j)
+            outs = Gb[i].with_rows(output_rows)
+            for z in range(params['output_bits']):
+                if params['gate'](i,j)[z]:
+                    outs[z][params['delta']] = Not( outs[z][params['delta']] )
+            checkL = view.concat_rows(outs)
+            checkL_ = checkL.mul(B[i][j])
+            checkR = id_matrix(view.nrows, view.ncols).concat_rows(Ev[j])
+            ev_correct = checkL_.eq(checkR)
             # each evaluator oracle query equals one in the basis changed garble constraints
             Gb_Cp = [ c.basis_change(B[i][j]) for c in Gb_C[i] ]
             matched_oracles = T
             for ev_c in Ev_C[j]:
                 c = Or( *map(lambda c: ev_c.eq(c), Gb_Cp))
                 matched_oracles = And(matched_oracles, c)
+            c = And(*[ ev_correct, matched_oracles ])
+            const = And(const, c)
+    return const
 
-            return And(*[ view_ok, ev_correct, matched_oracles ])
-
-def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
+def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
     width = input_bits + 1 + h_calls_gb
-    reach = size + h_calls_ev - h_calls_gb - 1
-    delta = input_bits + 1
-
+    reach = size + input_bits + h_calls_ev
+    delta = input_bits
+    params = { "size"        : size
+             , "input_bits"  : input_bits
+             , "output_bits" : output_bits
+             , "h_arity"     : h_arity
+             , "h_calls_gb"  : h_calls_gb
+             , "h_calls_ev"  : h_calls_ev
+             , "width"       : width
+             , "reach"       : reach
+             , "delta"       : delta
+             , "gate"        : gate
+             }
     ################################################################################
     ## variables
-
     # a garbling scheme for each i
     gb = []
     cs = []
     for i in range(4):
-        gb.append( smatrix( size, width ))
+        gb.append( smatrix( size + output_bits, width ))
         cs.append( generate_constraints( h_calls_gb, h_arity, input_bits+1 ))
-
     # a basis change for each (i,j)
     bs = []
     for i in range(4):
@@ -222,32 +254,21 @@ def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_
         for j in range(4):
             b = smatrix( width, width, { 2:[F]*(width-1)+[T] })
             bs[i].append(b)
-
     # an evaluation scheme for each j
     ev = []
     ec = []
     for j in range(4):
-        ev.append( smatrix( output_bits, size-1 + h_calls_ev ))
-        ec.append( generate_constraints( 1, h_arity, size-1 ))
-
+        ev.append( smatrix( output_bits, size + input_bits + h_calls_ev ))
+        ec.append( generate_constraints( h_calls_ev, h_arity, size + input_bits ))
     ################################################################################
     ## constraints
-
     bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
-
-    secure = T
-    for i in range(4):
-        for j in range(4):
-            view   = get_view(gb, input_bits, i, j)
-            s      = security(view, cs[i], bs[i][j], reach, delta)
-            secure = And(secure, s)
-
-    correct = correctness(gb, cs, bs, ev, ec, delta, width, reach)
-
+    secure        = security(gb, cs, bs, params)
+    correct       = correctness(gb, cs, bs, ev, ec, params)
     ################################################################################
     ## the formula
-
-    return { 'formula': And(*[ bs_invertable, secure ])
+    return { 'formula': And(*[ bs_invertable, secure, correct ])
+           , 'params' : params
            , 'bs'     : bs
            , 'gb'     : gb
            , 'cs'     : cs
@@ -255,12 +276,38 @@ def generate_gb(size=3, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_
            , 'ec'     : ec
            }
 
+def check(scheme):
+    z3 = Solver('z3')
+    z3.add_assertion(scheme['formula'])
+    ok = z3.solve()
+    if ok:
+        m = z3.get_model()
+        z3.exit()
+        return m
+    else:
+        z3.exit()
 
-
-
+def reverse_mapping( scheme, model ):
+    scheme_ = {}
+    scheme_['gb'] = []
+    scheme_['ev'] = []
+    scheme_['cs'] = []
+    scheme_['ec'] = []
+    scheme_['bs'] = []
+    for i in range(4):
+        scheme_['bs'].append([])
+        for j in range(4):
+            scheme_['bs'][i].append( scheme['bs'][i][j].reverse_mapping(model) )
+        scheme_['gb'].append( scheme['gb'][i].reverse_mapping(model) )
+        scheme_['ev'].append( scheme['ev'][i].reverse_mapping(model) )
+        # try:
+        scheme_['cs'].append([])
+        for c in scheme['cs'][i]:
+            scheme_['cs'][i].append( c.reverse_mapping(model) )
+        scheme_['ec'].append([])
+        for c in scheme['ec'][i]:
+            scheme_['ec'][i].append( c.reverse_mapping(model) )
+    return scheme_
 
 if __name__ == "__main__":
     generate_gb()
-
-
-
