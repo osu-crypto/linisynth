@@ -1,7 +1,7 @@
 #/usr/bin/env python2
 
 from pysmt.shortcuts import *
-from pysmt.typing import BOOL
+from pysmt.typing import BOOL, INT
 import string
 import itertools
 import copy
@@ -9,19 +9,60 @@ import copy
 T = TRUE()
 F = FALSE()
 
+def mapall(f, stuff):
+    p = T
+    for elem in stuff:
+        q = f(elem)
+        p = And(p,q)
+    return p
+
 ################################################################################
 ## shortcuts
 
 # works
 def free_xor():
-    return generate_gb(h_calls_gb=0, h_calls_ev=0, size=0, gate=xor_gate)
+    params = { "gate"        : xor_gate
+             , "size"        : 0
+             , "input_bits"  : 2
+             , "output_bits" : 1
+             , "h_arity"     : 1
+             , "h_calls_gb"  : 0
+             , "h_calls_ev"  : 0
+             }
+    return generate_gb(params)
 
-# works
+def cheaper_and():
+    params = { "gate"        : and_gate
+             , "size"        : 2
+             , "input_bits"  : 2
+             , "output_bits" : 1
+             , "h_arity"     : 1
+             , "h_calls_gb"  : 4
+             , "h_calls_ev"  : 1
+             }
+    return generate_gb(params)
+
 def half_gate():
-    return generate_gb(input_bits=2, h_calls_gb=4, h_calls_ev=2, size=2, gate=and_gate)
+    params = { "gate"        : and_gate
+             , "size"        : 2
+             , "input_bits"  : 2
+             , "output_bits" : 1
+             , "h_arity"     : 1
+             , "h_calls_gb"  : 4
+             , "h_calls_ev"  : 2
+             }
+    return generate_gb(params)
 
 def and_fan_in_3():
-    return generate_gb(input_bits=3, h_calls_gb=8, h_calls_ev=3, size=3, gate=and_gate_3)
+    params = { "gate"        : and3_gate
+             , "size"        : 3
+             , "input_bits"  : 3
+             , "output_bits" : 1
+             , "h_arity"     : 1
+             , "h_calls_gb"  : 8
+             , "h_calls_ev"  : 3
+             }
+    return generate_gb(params)
 
 ################################################################################
 ## gates
@@ -30,7 +71,7 @@ def and_gate(i, j):
     bs = bits(i^j, 2)
     return [bs[0] and bs[1]]
 
-def and_gate_3(i, j):
+def and3_gate(i, j):
     bs = bits(i^j, 3)
     return [bs[0] and bs[1] and bs[2]]
 
@@ -110,17 +151,31 @@ class smatrix (list):
     # adds zero cols as necessary
     def eq(self, other):
         assert(self.nrows == other.nrows)
-        c = T
-        for i in range(self.nrows):
-            p = vec_eq(self[i], other[i])
-            c = And(c,p)
-        return c
+        return mapall(lambda t: vec_eq(t[0], t[1]), zip(self, other))
 
     def with_rows(self, rows):
         out = smatrix( len(rows), self.ncols, initialize=False )
         for (i, row) in zip(range(len(rows)), rows):
             out[i] = copy.copy(self[row])
         return out
+
+    def max_hamming_weight(self, n):
+        return mapall(lambda row: hamming_weight_leq(row, n), self)
+
+    # def limit_hamming_weight(self):
+def hamming_weight_leq(vec, n):
+    ints = [ FreshSymbol(INT) for x in vec ]
+    p = T
+    total = Int(0)
+    for (x, y) in zip(vec, ints):
+        q = Ite(x, Equals(y, Int(1)), Equals(y, Int(0)))
+        p = And(p,q)
+        total = Plus(total, y)
+    q = LE(total, Int(n))
+    p = And(p, q)
+    return p
+
+test = [ FreshSymbol(BOOL) for x in range(10) ]
 
 def id_matrix(nrows, ncols):
     I = smatrix(nrows, ncols)
@@ -250,21 +305,18 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
             const = And(const, c)
     return const
 
-def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h_calls_gb=4, h_calls_ev=1):
-    width = input_bits + 1 + h_calls_gb
-    reach = size + input_bits + h_calls_ev
-    delta = input_bits
-    params = { "size"        : size
-             , "input_bits"  : input_bits
-             , "output_bits" : output_bits
-             , "h_arity"     : h_arity
-             , "h_calls_gb"  : h_calls_gb
-             , "h_calls_ev"  : h_calls_ev
-             , "width"       : width
-             , "reach"       : reach
-             , "delta"       : delta
-             , "gate"        : gate
-             }
+def generate_gb(params):
+    input_bits  = params['input_bits']
+    output_bits = params['output_bits']
+    h_arity     = params['h_arity']
+    h_calls_gb  = params['h_calls_gb']
+    h_calls_ev  = params['h_calls_ev']
+    gate        = params['gate']
+    size        = params['size']
+    width       = params['width']       = input_bits + 1 + h_calls_gb
+    reach       = params['reach']       = size + input_bits + h_calls_ev
+    ev_width    = params['ev_width']    = size + input_bits + h_calls_ev
+    delta       = params['delta']       = input_bits
     print "params =", params
     ################################################################################
     ## variables
@@ -272,8 +324,10 @@ def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h
     gb = []
     cs = []
     for i in range(2**input_bits):
-        gb.append( smatrix( size + output_bits, width ))
-        cs.append( generate_constraints( h_calls_gb, h_arity, input_bits+1 ))
+        g = smatrix( size + output_bits, width )
+        c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
+        gb.append(g)
+        cs.append(c)
     # a basis change for each (i,j)
     bs = []
     bi = []
@@ -290,8 +344,10 @@ def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h
     ev = []
     ec = []
     for j in range(2**input_bits):
-        ev.append( smatrix( output_bits, size + input_bits + h_calls_ev ))
-        ec.append( generate_constraints( h_calls_ev, h_arity, size + input_bits ))
+        e = smatrix( output_bits, ev_width )
+        c = generate_constraints( h_calls_ev, h_arity, size + input_bits )
+        ev.append(e)
+        ec.append(c)
     ################################################################################
     ## constraints
     # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
@@ -302,11 +358,17 @@ def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h
             p = I.eq( bs[i][j].mul(bi[i][j]) )
             bs_invertable = And(bs_invertable, p)
     # bs_invertable = T
-    secure        = security(gb, cs, bs, params)
-    correct       = correctness(gb, cs, bs, ev, ec, params)
+    secure  = security(gb, cs, bs, params)
+    correct = correctness(gb, cs, bs, ev, ec, params)
+    ham_gb = T
+    ham_ev = T
+    if 'hamming_weight_gb' in params:
+        ham_gb = mapall(lambda e: e.max_hamming_weight(hamming_weight_gb), gb)
+    if 'hamming_weight_ev' in params:
+        ham_ev = mapall(lambda e: e.max_hamming_weight(hamming_weight_ev), ev)
     ################################################################################
     ## the formula
-    return { 'formula': And(*[ bs_invertable, secure, correct ])
+    return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
            , 'params' : params
            , 'bs'     : bs
            , 'gb'     : gb
@@ -315,7 +377,7 @@ def generate_gb(gate=and_gate, size=2, input_bits=2, output_bits=1, h_arity=1, h
            , 'ec'     : ec
            }
 
-def check(scheme):
+def check(scheme):# {{{
     z3 = Solver('z3')
     z3.add_assertion(scheme['formula'])
     ok = z3.solve()
@@ -325,8 +387,8 @@ def check(scheme):
         return m
     else:
         z3.exit()
-
-def reverse_mapping( scheme, model ):
+# }}}
+def reverse_mapping( scheme, model ):# {{{
     scheme_ = {}
     scheme_['params'] = scheme['params']
     scheme_['gb'] = []
@@ -348,8 +410,8 @@ def reverse_mapping( scheme, model ):
         for c in scheme['ec'][i]:
             scheme_['ec'][i].append( c.reverse_mapping(model) )
     return scheme_
-
-def print_mapping( scheme ):
+# }}}
+def print_mapping( scheme ):# {{{
     params = scheme['params']
     def args_str(row, names):
         args = []
@@ -403,10 +465,11 @@ def print_mapping( scheme ):
         for row in range(len(ev)):
             name = 'C' + str(row)
             print "\t{} = {}".format( name, args_str(ev[row], ev_names) )
-
-def print_model( scheme, model ):
+# }}}
+def print_model( scheme, model ):# {{{
     s = reverse_mapping(scheme, model)
     print_mapping(s)
+# }}}
 
 if __name__ == "__main__":
     generate_gb()
