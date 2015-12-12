@@ -351,35 +351,62 @@ def reverse_mapping( scheme, model ):
 
 def print_mapping( scheme ):
     params = scheme['params']
-    # name the fresh vars
-    gb_names = []
-    cur_inp = 'A'
-    for i in range(params['input_bits']):
-        gb_names.append(cur_inp)
-        cur_inp = chr(ord(cur_inp)+1)
-    gb_names.append('delta')
-    cur_inp = 0
-    for i in range(params['h_calls_gb']):
-        gb_names.append('H' + str(cur_inp))
-        cur_inp += 1
+    def args_str(row, names):
+        args = []
+        for col in range(len(row)):
+            if row[col]: 
+                args.append(names[col])
+        return " + ".join(args)
+    for i in range(len(scheme['gb'])):
+        print "---i={}---".format(i)
+        print "Gb:"
+        gb = scheme['gb'][i]
+        cs = scheme['cs'][i]
+        gb_names = []
+        cur_inp = 'A'
+        for row in range(params['input_bits']):
+            gb_names.append(cur_inp)
+            cur_inp = chr(ord(cur_inp)+1)
+        gb_names.append('delta')
+        cur_inp = 0
+        for row in range(params['h_calls_gb']):
+            var = 'h' + str(cur_inp)
+            cur_inp += 1
+            gb_names.append(var)
+            args = map(lambda a: args_str(a, gb_names), cs[row].lhs)
+            print "\t{} = H({})".format(var, ", ".join(args))
+        for row in range(len(gb)):
+            if row < params['size']:
+                name = 'F' + str(row)
+            else:
+                name = 'C' + str(row - params['size'])
+            print "\t{} = {}".format( name, args_str(gb[row], gb_names) )
+        print "Ev:"
+        ev = scheme['ev'][i]
+        ec = scheme['ec'][i]
+        ev_names = []
+        cur_inp = 'A'
+        for row in range(params['input_bits']):
+            ev_names.append(cur_inp)
+            cur_inp = chr(ord(cur_inp)+1)
+        cur_inp = 0
+        for row in range(params['size']):
+            ev_names.append('F' + str(cur_inp))
+            cur_inp += 1
+        cur_inp = 0
+        for row in range(params['h_calls_ev']):
+            var = 'h' + str(cur_inp)
+            cur_inp += 1
+            ev_names.append(var)
+            args = map(lambda a: args_str(a, ev_names), ec[row].lhs)
+            print "\t{} = H({})".format(var, ", ".join(args))
+        for row in range(len(ev)):
+            name = 'C' + str(row)
+            print "\t{} = {}".format( name, args_str(ev[row], ev_names) )
 
-    print gb_names
-    
-    ev_names = []
-    cur_inp = 'A'
-    for i in range(params['input_bits']):
-        ev_names.append(cur_inp)
-        cur_inp = chr(ord(cur_inp)+1)
-    cur_inp = 0
-    for i in range(params['size']):
-        ev_names.append('F' + str(cur_inp))
-        cur_inp += 1
-    cur_inp = 0
-    for i in range(params['h_calls_ev']):
-        ev_names.append('h' + str(cur_inp))
-        cur_inp += 1
-
-    print ev_names
+def print_model( scheme, model ):
+    s = reverse_mapping(scheme, model)
+    print_mapping(s)
 
 if __name__ == "__main__":
     generate_gb()
