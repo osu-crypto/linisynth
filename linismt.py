@@ -50,6 +50,7 @@ def half_gate():
              , "h_arity"     : 1
              , "h_calls_gb"  : 4
              , "h_calls_ev"  : 2
+             , "hamming_weight_ev": 3
              }
     return generate_gb(params)
 
@@ -363,9 +364,11 @@ def generate_gb(params):
     ham_gb = T
     ham_ev = T
     if 'hamming_weight_gb' in params:
-        ham_gb = mapall(lambda e: e.max_hamming_weight(hamming_weight_gb), gb)
+        print "max hamming weight (gb):", params['hamming_weight_gb']
+        ham_gb = mapall(lambda e: e.max_hamming_weight(params['hamming_weight_gb']), gb)
     if 'hamming_weight_ev' in params:
-        ham_ev = mapall(lambda e: e.max_hamming_weight(hamming_weight_ev), ev)
+        print "max hamming weight (ev):", params['hamming_weight_ev']
+        ham_ev = mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), ev)
     ################################################################################
     ## the formula
     return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
