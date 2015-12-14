@@ -50,7 +50,8 @@ def half_gate():
              , "h_arity"     : 1
              , "h_calls_gb"  : 4
              , "h_calls_ev"  : 2
-             , "hamming_weight_ev": 3
+             # , "helper_bits" : 1
+             # , "hamming_weight_ev": 3
              }
     return generate_gb(params)
 
@@ -62,6 +63,7 @@ def and_fan_in_3():
              , "h_arity"     : 1
              , "h_calls_gb"  : 8
              , "h_calls_ev"  : 3
+             , "helper_bits" : 1
              }
     return generate_gb(params)
 
@@ -242,9 +244,9 @@ def generate_constraints(n_constraints, arity, previous_fresh):
         cs.append( constraint( lhs, rhs ))
     return cs
 
-def get_view(Gb, input_bits, i, j):
-    width  = Gb[0].ncols
-    size   = Gb[0].nrows
+def get_view(Gb, input_bits, i, j, z):
+    width  = Gb[0][0].ncols
+    size   = Gb[0][0].nrows
     alphas = bits(i ^ j, input_bits)
     v = smatrix(input_bits, width, initialize=False)
     for row in range(input_bits):
@@ -253,7 +255,7 @@ def get_view(Gb, input_bits, i, j):
                 v[row][col] = T
             else:
                 v[row][col] = F
-    return v.concat_rows( Gb[i][:-1] ) # Gb[i] without its output row
+    return v.concat_rows( Gb[i][z][:-1] ) # Gb[i] without its output row
 
 def right_zeros(v, num_nonzero):
     return Not(Or(*v[num_nonzero:]))
@@ -262,9 +264,10 @@ def security(Gb, Gb_C, B, params):
     secure = T
     for i in range(2**params['input_bits']):
         for j in range(2**params['input_bits']):
-            view   = get_view(Gb, params['input_bits'], i, j)
-            s      = security_(view, Gb_C[i], B[i][j], params['reach'], params['delta'])
-            secure = And(secure, s)
+            for z in range(2**params['helper_bits']):
+                view   = get_view(Gb, params['input_bits'], i, j, z)
+                s      = security_(view, Gb_C[i][z], B[i][j][z], params['reach'], params['delta'])
+                secure = And(secure, s)
     return secure
 
 def security_(view, Cs, B, reach, delta):
@@ -283,27 +286,32 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
     const = T
     for i in range(2**params['input_bits']):
         for j in range(2**params['input_bits']):
-            # concat the output wires to the view, check that the top part is id, bottom eq to ev
-            view = get_view(Gb, params['input_bits'], i, j)
-            outs = Gb[i].with_rows(output_rows)
-            for z in range(params['output_bits']):
-                if params['gate'](i,j)[z]:
-                    outs[z][params['delta']] = Not( outs[z][params['delta']] )
+            corrects = []
+            for z_gb in range(2**params['helper_bits']):
+                for z_ev in range(2**params['helper_bits']):
+                    # concat the output wires to the view, check that the top part is id, bottom eq to ev
+                    view = get_view(Gb, params['input_bits'], i, j, z_gb)
+                    outs = Gb[i][z_gb].with_rows(output_rows)
+                    for k in range(params['output_bits']):
+                        if params['gate'](i,j)[k]:
+                            outs[k][params['delta']] = Not( outs[k][params['delta']] )
+                    checkL = view.concat_rows(outs)
+                    checkL_ = checkL.mul(B[i][j][z_gb])
+                    I = id_matrix(view.nrows, view.ncols)
+                    checkR = I.concat_rows(Ev[j][z_ev])
+                    ev_correct = checkL_.eq(checkR)
 
-            checkL = view.concat_rows(outs)
-            checkL_ = checkL.mul(B[i][j])
-            I = id_matrix(view.nrows, view.ncols)
-            checkR = I.concat_rows(Ev[j])
-            ev_correct = checkL_.eq(checkR)
+                    # each evaluator oracle query equals one in the basis changed garble constraints
+                    Gb_Cp = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
+                    matched_oracles = T
+                    for ev_c in Ev_C[j][z_ev]:
+                        c = ExactlyOne( map(lambda c: ev_c.eq(c), Gb_Cp))
+                        matched_oracles = And(matched_oracles, c)
+                    c = And(ev_correct, matched_oracles)
+                    corrects.append(c)
 
-            # each evaluator oracle query equals one in the basis changed garble constraints
-            Gb_Cp = [ c.basis_change(B[i][j]) for c in Gb_C[i] ]
-            matched_oracles = T
-            for ev_c in Ev_C[j]:
-                c = Or( *map(lambda c: ev_c.eq(c), Gb_Cp))
-                matched_oracles = And(matched_oracles, c)
-            c = And(*[ ev_correct, matched_oracles ])
-            const = And(const, c)
+            const = And(const, ExactlyOne( corrects ))
+
     return const
 
 def generate_gb(params):
@@ -318,6 +326,9 @@ def generate_gb(params):
     reach       = params['reach']       = size + input_bits + h_calls_ev
     ev_width    = params['ev_width']    = size + input_bits + h_calls_ev
     delta       = params['delta']       = input_bits
+    if not 'helper_bits' in params:
+        params['helper_bits'] = 0
+    helper_bits = params['helper_bits']
     print "params =", params
     ################################################################################
     ## variables
@@ -325,10 +336,13 @@ def generate_gb(params):
     gb = []
     cs = []
     for i in range(2**input_bits):
-        g = smatrix( size + output_bits, width )
-        c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
-        gb.append(g)
-        cs.append(c)
+        gb.append([])
+        cs.append([])
+        for z in range(2**helper_bits):
+            g = smatrix( size + output_bits, width )
+            c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
+            gb[i].append(g)
+            cs[i].append(c)
     # a basis change for each (i,j)
     bs = []
     bi = []
@@ -336,19 +350,25 @@ def generate_gb(params):
         bs.append([])
         bi.append([])
         for j in range(2**input_bits):
-            b    = smatrix( width, width, { 2:[F]*(width-1)+[T] })
-            view = get_view(gb, input_bits, i, j)
-            b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
-            bs[i].append(b)
-            bi[i].append(b_)
+            bs[i].append([])
+            bi[i].append([])
+            for z in range(2**helper_bits):
+                b    = smatrix( width, width, { 2:[F]*(width-1)+[T] })
+                view = get_view(gb, input_bits, i, j, z)
+                b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
+                bs[i][j].append(b)
+                bi[i][j].append(b_)
     # an evaluation scheme for each j
     ev = []
     ec = []
     for j in range(2**input_bits):
-        e = smatrix( output_bits, ev_width )
-        c = generate_constraints( h_calls_ev, h_arity, size + input_bits )
-        ev.append(e)
-        ec.append(c)
+        ev.append([])
+        ec.append([])
+        for z in range(2**helper_bits):
+            e = smatrix( output_bits, ev_width )
+            c = generate_constraints( h_calls_ev, h_arity, size + input_bits )
+            ev[j].append(e)
+            ec[j].append(c)
     ################################################################################
     ## constraints
     # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
@@ -356,9 +376,9 @@ def generate_gb(params):
     bs_invertable = T
     for i in range(2**input_bits):
         for j in range(2**input_bits):
-            p = I.eq( bs[i][j].mul(bi[i][j]) )
-            bs_invertable = And(bs_invertable, p)
-    # bs_invertable = T
+            for z in range(2**helper_bits):
+                p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
+                bs_invertable = And(bs_invertable, p)
     secure  = security(gb, cs, bs, params)
     correct = correctness(gb, cs, bs, ev, ec, params)
     ham_gb = T
@@ -402,16 +422,24 @@ def reverse_mapping( scheme, model ):# {{{
     for i in range(2**scheme['params']['input_bits']):
         scheme_['bs'].append([])
         for j in range(2**scheme['params']['input_bits']):
-            scheme_['bs'][i].append( scheme['bs'][i][j].reverse_mapping(model) )
-        scheme_['gb'].append( scheme['gb'][i].reverse_mapping(model) )
-        scheme_['ev'].append( scheme['ev'][i].reverse_mapping(model) )
-        # try:
+            scheme_['bs'][i].append([])
+            for z in range(2**scheme['params']['helper_bits']):
+                scheme_['bs'][i][j].append( scheme['bs'][i][j][z].reverse_mapping(model) )
+
+        scheme_['gb'].append([])
+        scheme_['ev'].append([])
         scheme_['cs'].append([])
-        for c in scheme['cs'][i]:
-            scheme_['cs'][i].append( c.reverse_mapping(model) )
         scheme_['ec'].append([])
-        for c in scheme['ec'][i]:
-            scheme_['ec'][i].append( c.reverse_mapping(model) )
+        for z in range(2**scheme['params']['helper_bits']):
+            scheme_['gb'][i].append( scheme['gb'][i][z].reverse_mapping(model) )
+            scheme_['ev'][i].append( scheme['ev'][i][z].reverse_mapping(model) )
+            # try:
+            scheme_['cs'][i].append( [] )
+            scheme_['ec'][i].append( [] )
+            for c in scheme['cs'][i][z]:
+                scheme_['cs'][i][z].append( c.reverse_mapping(model) )
+            for c in scheme['ec'][i][z]:
+                scheme_['ec'][i][z].append( c.reverse_mapping(model) )
     return scheme_
 # }}}
 def print_mapping( scheme ):# {{{
@@ -423,51 +451,55 @@ def print_mapping( scheme ):# {{{
                 args.append(names[col])
         return " + ".join(args)
     for i in range(len(scheme['gb'])):
-        print "---i={}---".format(i)
-        print "Gb:"
-        gb = scheme['gb'][i]
-        cs = scheme['cs'][i]
-        gb_names = []
-        cur_inp = 'A'
-        for row in range(params['input_bits']):
-            gb_names.append(cur_inp)
-            cur_inp = chr(ord(cur_inp)+1)
-        gb_names.append('delta')
-        cur_inp = 0
-        for row in range(params['h_calls_gb']):
-            var = 'h' + str(cur_inp)
-            cur_inp += 1
-            gb_names.append(var)
-            args = map(lambda a: args_str(a, gb_names), cs[row].lhs)
-            print "\t{} = H({})".format(var, ", ".join(args))
-        for row in range(len(gb)):
-            if row < params['size']:
-                name = 'F' + str(row)
-            else:
-                name = 'C' + str(row - params['size'])
-            print "\t{} = {}".format( name, args_str(gb[row], gb_names) )
-        print "Ev:"
-        ev = scheme['ev'][i]
-        ec = scheme['ec'][i]
-        ev_names = []
-        cur_inp = 'A'
-        for row in range(params['input_bits']):
-            ev_names.append(cur_inp)
-            cur_inp = chr(ord(cur_inp)+1)
-        cur_inp = 0
-        for row in range(params['size']):
-            ev_names.append('F' + str(cur_inp))
-            cur_inp += 1
-        cur_inp = 0
-        for row in range(params['h_calls_ev']):
-            var = 'h' + str(cur_inp)
-            cur_inp += 1
-            ev_names.append(var)
-            args = map(lambda a: args_str(a, ev_names), ec[row].lhs)
-            print "\t{} = H({})".format(var, ", ".join(args))
-        for row in range(len(ev)):
-            name = 'C' + str(row)
-            print "\t{} = {}".format( name, args_str(ev[row], ev_names) )
+        for z in range(len(scheme['gb'][i])):
+            print "---i={},z={}---".format(i,z)
+            print "Gb:"
+            gb = scheme['gb'][i][z]
+            cs = scheme['cs'][i][z]
+            gb_names = []
+            cur_inp = 'A'
+            for row in range(params['input_bits']):
+                gb_names.append(cur_inp)
+                cur_inp = chr(ord(cur_inp)+1)
+            gb_names.append('delta')
+            cur_inp = 0
+            for row in range(params['h_calls_gb']):
+                var = 'h' + str(cur_inp)
+                cur_inp += 1
+                gb_names.append(var)
+                args = map(lambda a: args_str(a, gb_names), cs[row].lhs)
+                print "\t{} = H({})".format(var, ", ".join(args))
+            for row in range(len(gb)):
+                if row < params['size']:
+                    name = 'F' + str(row)
+                else:
+                    name = 'C' + str(row - params['size'])
+                print "\t{} = {}".format( name, args_str(gb[row], gb_names) )
+    for j in range(len(scheme['ev'])):
+        for z in range(len(scheme['ev'][j])):
+            print "---j={},z={}---".format(j,z)
+            print "Ev:"
+            ev = scheme['ev'][j][z]
+            ec = scheme['ec'][j][z]
+            ev_names = []
+            cur_inp = 'A'
+            for row in range(params['input_bits']):
+                ev_names.append(cur_inp)
+                cur_inp = chr(ord(cur_inp)+1)
+            cur_inp = 0
+            for row in range(params['size']):
+                ev_names.append('F' + str(cur_inp))
+                cur_inp += 1
+            cur_inp = 0
+            for row in range(params['h_calls_ev']):
+                var = 'h' + str(cur_inp)
+                cur_inp += 1
+                ev_names.append(var)
+                args = map(lambda a: args_str(a, ev_names), ec[row].lhs)
+                print "\t{} = H({})".format(var, ", ".join(args))
+            for row in range(len(ev)):
+                name = 'C' + str(row)
+                print "\t{} = {}".format( name, args_str(ev[row], ev_names) )
 # }}}
 def print_model( scheme, model ):# {{{
     s = reverse_mapping(scheme, model)
