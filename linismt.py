@@ -5,6 +5,7 @@ from pysmt.typing import BOOL, INT
 import string
 import itertools
 import copy
+import tqdm
 
 T = TRUE()
 F = FALSE()
@@ -262,12 +263,14 @@ def right_zeros(v, num_nonzero):
 
 def security(Gb, Gb_C, B, params):
     secure = T
-    for i in range(2**params['input_bits']):
-        for j in range(2**params['input_bits']):
-            for z in range(2**params['helper_bits']):
-                view   = get_view(Gb, params['input_bits'], i, j, z)
-                s      = security_(view, Gb_C[i][z], B[i][j][z], params['reach'], params['delta'])
-                secure = And(secure, s)
+    with tqdm.tqdm(total=2**(2*params['input_bits']+params['helper_bits']), desc="security") as pbar:
+        for i in range(2**params['input_bits']):
+            for j in range(2**params['input_bits']):
+                for z in range(2**params['helper_bits']):
+                    view   = get_view(Gb, params['input_bits'], i, j, z)
+                    s      = security_(view, Gb_C[i][z], B[i][j][z], params['reach'], params['delta'])
+                    secure = And(secure, s)
+                    pbar.update(1)
     return secure
 
 def security_(view, Cs, B, reach, delta):
@@ -284,33 +287,34 @@ def security_(view, Cs, B, reach, delta):
 def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
     output_rows = range( params['size'], params['size'] + params['output_bits'] )
     const = T
-    for i in range(2**params['input_bits']):
-        for j in range(2**params['input_bits']):
-            corrects = []
-            for z_gb in range(2**params['helper_bits']):
-                for z_ev in range(2**params['helper_bits']):
-                    # concat the output wires to the view, check that the top part is id, bottom eq to ev
-                    view = get_view(Gb, params['input_bits'], i, j, z_gb)
-                    outs = Gb[i][z_gb].with_rows(output_rows)
-                    for k in range(params['output_bits']):
-                        if params['gate'](i,j)[k]:
-                            outs[k][params['delta']] = Not( outs[k][params['delta']] )
-                    checkL = view.concat_rows(outs)
-                    checkL_ = checkL.mul(B[i][j][z_gb])
-                    I = id_matrix(view.nrows, view.ncols)
-                    checkR = I.concat_rows(Ev[j][z_ev])
-                    ev_correct = checkL_.eq(checkR)
+    with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
+        for i in range(2**params['input_bits']):
+            for j in range(2**params['input_bits']):
+                corrects = []
+                for z_gb in range(2**params['helper_bits']):
+                    for z_ev in range(2**params['helper_bits']):
+                        # concat the output wires to the view, check that the top part is id, bottom eq to ev
+                        view = get_view(Gb, params['input_bits'], i, j, z_gb)
+                        outs = Gb[i][z_gb].with_rows(output_rows)
+                        for k in range(params['output_bits']):
+                            if params['gate'](i,j)[k]:
+                                outs[k][params['delta']] = Not( outs[k][params['delta']] )
+                        checkL = view.concat_rows(outs)
+                        checkL_ = checkL.mul(B[i][j][z_gb])
+                        I = id_matrix(view.nrows, view.ncols)
+                        checkR = I.concat_rows(Ev[j][z_ev])
+                        ev_correct = checkL_.eq(checkR)
 
-                    # each evaluator oracle query equals one in the basis changed garble constraints
-                    Gb_Cp = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
-                    matched_oracles = T
-                    for ev_c in Ev_C[j][z_ev]:
-                        c = ExactlyOne( map(lambda c: ev_c.eq(c), Gb_Cp))
-                        matched_oracles = And(matched_oracles, c)
-                    c = And(ev_correct, matched_oracles)
-                    corrects.append(c)
-
-            const = And(const, ExactlyOne( corrects ))
+                        # each evaluator oracle query equals one in the basis changed garble constraints
+                        Gb_Cp = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
+                        matched_oracles = T
+                        for ev_c in Ev_C[j][z_ev]:
+                            c = ExactlyOne( map(lambda c: ev_c.eq(c), Gb_Cp))
+                            matched_oracles = And(matched_oracles, c)
+                        c = And(ev_correct, matched_oracles)
+                        corrects.append(c)
+                const = And(const, ExactlyOne( corrects ))
+                pbar.update(1)
 
     return const
 
@@ -335,50 +339,58 @@ def generate_gb(params):
     # a garbling scheme for each i
     gb = []
     cs = []
-    for i in range(2**input_bits):
-        gb.append([])
-        cs.append([])
-        for z in range(2**helper_bits):
-            g = smatrix( size + output_bits, width )
-            c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
-            gb[i].append(g)
-            cs[i].append(c)
+    with tqdm.tqdm(total=2**(input_bits+helper_bits), desc="gb") as pbar:
+        for i in range(2**input_bits):
+            gb.append([])
+            cs.append([])
+            for z in tqdm.tqdm(range(2**helper_bits)):
+                g = smatrix( size + output_bits, width )
+                c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
+                gb[i].append(g)
+                cs[i].append(c)
+                pbar.update(1)
     # a basis change for each (i,j)
     bs = []
     bi = []
-    for i in range(2**input_bits):
-        bs.append([])
-        bi.append([])
-        for j in range(2**input_bits):
-            bs[i].append([])
-            bi[i].append([])
-            for z in range(2**helper_bits):
-                b    = smatrix( width, width, { 2:[F]*(width-1)+[T] })
-                view = get_view(gb, input_bits, i, j, z)
-                b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
-                bs[i][j].append(b)
-                bi[i][j].append(b_)
+    with tqdm.tqdm(total=2**(input_bits+helper_bits+input_bits), desc="bs") as pbar:
+        for i in range(2**input_bits):
+            bs.append([])
+            bi.append([])
+            for j in range(2**input_bits):
+                bs[i].append([])
+                bi[i].append([])
+                for z in range(2**helper_bits):
+                    b    = smatrix( width, width, { 2:[F]*(width-1)+[T] })
+                    view = get_view(gb, input_bits, i, j, z)
+                    b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
+                    bs[i][j].append(b)
+                    bi[i][j].append(b_)
+                    pbar.update(1)
     # an evaluation scheme for each j
     ev = []
     ec = []
-    for j in range(2**input_bits):
-        ev.append([])
-        ec.append([])
-        for z in range(2**helper_bits):
-            e = smatrix( output_bits, ev_width )
-            c = generate_constraints( h_calls_ev, h_arity, size + input_bits )
-            ev[j].append(e)
-            ec[j].append(c)
+    with tqdm.tqdm(total=2**(input_bits+helper_bits), desc="ev") as pbar:
+        for j in range(2**input_bits):
+            ev.append([])
+            ec.append([])
+            for z in range(2**helper_bits):
+                e = smatrix( output_bits, ev_width )
+                c = generate_constraints( h_calls_ev, h_arity, size + input_bits )
+                ev[j].append(e)
+                ec[j].append(c)
+                pbar.update(1)
     ################################################################################
     ## constraints
     # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
     I = id_matrix( width, width )
     bs_invertable = T
-    for i in range(2**input_bits):
-        for j in range(2**input_bits):
-            for z in range(2**helper_bits):
-                p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
-                bs_invertable = And(bs_invertable, p)
+    with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
+        for i in range(2**input_bits):
+            for j in range(2**input_bits):
+                for z in range(2**helper_bits):
+                    p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
+                    bs_invertable = And(bs_invertable, p)
+                    pbar.update(1)
     secure  = security(gb, cs, bs, params)
     correct = correctness(gb, cs, bs, ev, ec, params)
     ham_gb = T
@@ -401,6 +413,7 @@ def generate_gb(params):
            }
 
 def check(scheme):# {{{
+    print "checking formula with z3..."
     z3 = Solver('z3')
     z3.add_assertion(scheme['formula'])
     ok = z3.solve()
@@ -507,4 +520,9 @@ def print_model( scheme, model ):# {{{
 # }}}
 
 if __name__ == "__main__":
-    generate_gb()
+    x = and_fan_in_3()
+    m = check(x)
+    if m:
+        print_model(x,m)
+    else:
+        print "unsat"
