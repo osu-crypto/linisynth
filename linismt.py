@@ -296,6 +296,7 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
                     # TODO HARDCODED
                     [a0,a1,a2] = bits(i^j, params['input_bits'])
                     z_ev = (a0 & a1) ^ z_gb
+                    # print bits(i,3), bits(j,3), z_gb, z_ev
                     # for z_ev in range(2**params['helper_bits']):
                     # concat the output wires to the view, check that the top part is id, bottom eq to ev
                     view = get_view(Gb, params['input_bits'], i, j, z_gb)
@@ -303,20 +304,19 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
                     for k in range(params['output_bits']):
                         if params['gate'](i,j)[k]:
                             outs[k][params['delta']] = Not( outs[k][params['delta']] )
-                    checkL = view.concat_rows(outs)
+                    checkL  = view.concat_rows(outs)
                     checkL_ = checkL.mul(B[i][j][z_gb])
                     I = id_matrix(view.nrows, view.ncols)
                     checkR = I.concat_rows(Ev[j][z_ev])
                     ev_correct = checkL_.eq(checkR)
 
                     # each evaluator oracle query equals one in the basis changed garble constraints
-                    Gb_Cp = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
+                    Gb_C_ = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
                     matched_oracles = T
                     for ev_c in Ev_C[j][z_ev]:
-                        c = ExactlyOne( map(lambda c: ev_c.eq(c), Gb_Cp))
+                        c = ExactlyOne( map(lambda d: ev_c.eq(d), Gb_C_))
                         matched_oracles = And(matched_oracles, c)
-                    c = And(ev_correct, matched_oracles)
-                    corrects.append(c)
+                    corrects.append( And(ev_correct, matched_oracles) )
                 const = And(const, And( *corrects ))
                 pbar.update(1)
 
@@ -347,7 +347,7 @@ def generate_gb(params):
         for i in range(2**input_bits):
             gb.append([])
             cs.append([])
-            for z in tqdm.tqdm(range(2**helper_bits)):
+            for z in range(2**helper_bits):
                 g = smatrix( size + output_bits, width )
                 c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
                 gb[i].append(g)
@@ -395,7 +395,8 @@ def generate_gb(params):
                     p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
                     bs_invertable = And(bs_invertable, p)
                     pbar.update(1)
-    secure  = security(gb, cs, bs, params)
+    # secure  = security(gb, cs, bs, params)
+    secure = T
     correct = correctness(gb, cs, bs, ev, ec, params)
     ham_gb = T
     ham_ev = T
