@@ -29,15 +29,16 @@ def free_xor():
              , "h_arity"     : 1
              , "h_calls_gb"  : 0
              , "h_calls_ev"  : 0
+             , "helper_bits" : 0
              }
     return generate_gb(params)
 
 def cheaper_and():
     params = { "gate"        : and_gate
-             , "size"        : 2
+             , "size"        : 3
              , "input_bits"  : 2
              , "output_bits" : 1
-             , "h_arity"     : 1
+             , "h_arity"     : 2
              , "h_calls_gb"  : 4
              , "h_calls_ev"  : 1
              }
@@ -63,7 +64,7 @@ def and_fan_in_3():
              , "output_bits" : 1
              , "h_arity"     : 1
              , "h_calls_gb"  : 8
-             , "h_calls_ev"  : 3
+             , "h_calls_ev"  : 4
              , "helper_bits" : 1
              }
     return generate_gb(params)
@@ -292,28 +293,31 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
             for j in range(2**params['input_bits']):
                 corrects = []
                 for z_gb in range(2**params['helper_bits']):
-                    for z_ev in range(2**params['helper_bits']):
-                        # concat the output wires to the view, check that the top part is id, bottom eq to ev
-                        view = get_view(Gb, params['input_bits'], i, j, z_gb)
-                        outs = Gb[i][z_gb].with_rows(output_rows)
-                        for k in range(params['output_bits']):
-                            if params['gate'](i,j)[k]:
-                                outs[k][params['delta']] = Not( outs[k][params['delta']] )
-                        checkL = view.concat_rows(outs)
-                        checkL_ = checkL.mul(B[i][j][z_gb])
-                        I = id_matrix(view.nrows, view.ncols)
-                        checkR = I.concat_rows(Ev[j][z_ev])
-                        ev_correct = checkL_.eq(checkR)
+                    # TODO HARDCODED
+                    [a0,a1,a2] = bits(i^j, params['input_bits'])
+                    z_ev = (a0 & a1) ^ z_gb
+                    # for z_ev in range(2**params['helper_bits']):
+                    # concat the output wires to the view, check that the top part is id, bottom eq to ev
+                    view = get_view(Gb, params['input_bits'], i, j, z_gb)
+                    outs = Gb[i][z_gb].with_rows(output_rows)
+                    for k in range(params['output_bits']):
+                        if params['gate'](i,j)[k]:
+                            outs[k][params['delta']] = Not( outs[k][params['delta']] )
+                    checkL = view.concat_rows(outs)
+                    checkL_ = checkL.mul(B[i][j][z_gb])
+                    I = id_matrix(view.nrows, view.ncols)
+                    checkR = I.concat_rows(Ev[j][z_ev])
+                    ev_correct = checkL_.eq(checkR)
 
-                        # each evaluator oracle query equals one in the basis changed garble constraints
-                        Gb_Cp = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
-                        matched_oracles = T
-                        for ev_c in Ev_C[j][z_ev]:
-                            c = ExactlyOne( map(lambda c: ev_c.eq(c), Gb_Cp))
-                            matched_oracles = And(matched_oracles, c)
-                        c = And(ev_correct, matched_oracles)
-                        corrects.append(c)
-                const = And(const, ExactlyOne( corrects ))
+                    # each evaluator oracle query equals one in the basis changed garble constraints
+                    Gb_Cp = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
+                    matched_oracles = T
+                    for ev_c in Ev_C[j][z_ev]:
+                        c = ExactlyOne( map(lambda c: ev_c.eq(c), Gb_Cp))
+                        matched_oracles = And(matched_oracles, c)
+                    c = And(ev_correct, matched_oracles)
+                    corrects.append(c)
+                const = And(const, And( *corrects ))
                 pbar.update(1)
 
     return const
@@ -400,7 +404,7 @@ def generate_gb(params):
         ham_gb = mapall(lambda e: e.max_hamming_weight(params['hamming_weight_gb']), gb)
     if 'hamming_weight_ev' in params:
         print "max hamming weight (ev):", params['hamming_weight_ev']
-        ham_ev = mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), ev)
+        ham_ev = mapall(lambda outer: mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer),ev)
     ################################################################################
     ## the formula
     return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
