@@ -1,4 +1,4 @@
-#/usr/bin/env python2
+#!/usr/bin/env python2
 
 from pysmt.shortcuts import *
 from pysmt.typing import BOOL, INT
@@ -6,68 +6,67 @@ import string
 import itertools
 import copy
 import tqdm
+import sys
 
 T = TRUE()
 F = FALSE()
 
 def mapall(f, stuff):
-    p = T
-    for elem in stuff:
-        q = f(elem)
-        p = And(p,q)
-    return p
+    return reduce(lambda z, x: And(z, f(x)), stuff, T)
+
+def mapsome(f, stuff):
+    return reduce(lambda z, x: Or(z, f(x)), stuff, F)
+
+def bits(x, size):
+    return [ (x&(2**i)>0) for i in range(size) ]
 
 ################################################################################
 ## shortcuts
 
-# works
-def free_xor():
-    params = { "gate"        : xor_gate
-             , "size"        : 0
-             , "input_bits"  : 2
-             , "output_bits" : 1
-             , "h_arity"     : 1
-             , "h_calls_gb"  : 0
-             , "h_calls_ev"  : 0
-             , "helper_bits" : 0
-             }
-    return generate_gb(params)
-
-def cheaper_and():
-    params = { "gate"        : and_gate
-             , "size"        : 3
-             , "input_bits"  : 2
-             , "output_bits" : 1
-             , "h_arity"     : 2
-             , "h_calls_gb"  : 4
-             , "h_calls_ev"  : 1
-             }
-    return generate_gb(params)
-
-def half_gate():
-    params = { "gate"        : and_gate
-             , "size"        : 2
-             , "input_bits"  : 2
-             , "output_bits" : 1
-             , "h_arity"     : 1
-             , "h_calls_gb"  : 4
-             , "h_calls_ev"  : 2
-             # , "helper_bits" : 1
-             # , "hamming_weight_ev": 3
-             }
-    return generate_gb(params)
-
-def and_fan_in_3():
-    params = { "gate"        : and3_gate
-             , "size"        : 3
-             , "input_bits"  : 3
-             , "output_bits" : 1
-             , "h_arity"     : 1
-             , "h_calls_gb"  : 8
-             , "h_calls_ev"  : 4
-             , "helper_bits" : 1
-             }
-    return generate_gb(params)
+def shortcuts(x):
+    d = {}
+    d['free_xor'] = \
+        { "gate"        : xor_gate
+        , "size"        : 0
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 0
+        , "h_calls_ev"  : 0
+        , "helper_bits" : 0
+        }
+    d['cheaper_and'] = \
+        { "gate"        : and_gate
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 2
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
+        }
+    d['half_gate'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        # , "helper_bits" : 1
+        # , "hamming_weight_ev": 3
+        }
+    d['and3'] = \
+        { "gate"        : and3_gate
+        , "size"        : 3
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 1
+        , "helper_gate" : and3_helper_gate
+        }
+    return generate_gb(d[x])
 
 ################################################################################
 ## gates
@@ -80,15 +79,16 @@ def and3_gate(i, j):
     bs = bits(i^j, 3)
     return [bs[0] and bs[1] and bs[2]]
 
+def and3_helper_gate(i, j, z_gb):
+    [a0,a1,a2] = bits(i^j, 3)
+    return (a0 & a1) ^ z_gb
+
 def xor_gate(i, j):
     bs = bits(i^j, 2)
     return [bs[0] ^ bs[1]]
 
 ################################################################################
-## stuff
-
-def bits(x, size):
-    return [ (x&(2**i)>0) for i in range(size) ]
+## symbolic matrix class
 
 class smatrix (list):
     def __init__(self, nrows, ncols, premapping={}, initialize=True):
@@ -167,7 +167,6 @@ class smatrix (list):
     def max_hamming_weight(self, n):
         return mapall(lambda row: hamming_weight_leq(row, n), self)
 
-    # def limit_hamming_weight(self):
 def hamming_weight_leq(vec, n):
     ints = [ FreshSymbol(INT) for x in vec ]
     p = T
@@ -179,8 +178,6 @@ def hamming_weight_leq(vec, n):
     q = LE(total, Int(n))
     p = And(p, q)
     return p
-
-test = [ FreshSymbol(BOOL) for x in range(10) ]
 
 def id_matrix(nrows, ncols):
     I = smatrix(nrows, ncols)
@@ -205,6 +202,9 @@ def vec_eq(v, w):
     cs = [ Not(Xor(x,y)) for (x,y) in zip(vp,wp) ]
     return And(*cs)
 
+################################################################################
+## oracle constraint class
+
 class constraint:
     def __init__(self, lhs, rhs):
         self.lhs = lhs
@@ -225,6 +225,9 @@ class constraint:
 
     def eq(self, other):
         return And( self.lhs.eq(other.lhs), self.rhs.eq(other.rhs) )
+
+################################################################################
+## formula generation
 
 def generate_constraints(n_constraints, arity, previous_fresh):
     n_fresh = n_constraints + previous_fresh
@@ -286,42 +289,42 @@ def security_(view, Cs, B, reach, delta):
     return And(*[ mat_const, con_const, basis_const ])
 
 def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
-    output_rows = range( params['size'], params['size'] + params['output_bits'] )
-    const = T
+    accum = T
     with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
-        # for i in range(2**params['input_bits']):
-        for i in range(1):
+        for i in range(2**params['input_bits']):
             for j in range(2**params['input_bits']):
-                corrects = []
                 for z_gb in range(2**params['helper_bits']):
-                    # TODO HARDCODED
-                    [a0,a1,a2] = bits(i^j, params['input_bits'])
-                    z_ev = (a0 & a1) ^ z_gb
-                    # print bits(i,3), bits(j,3), z_gb, z_ev
-                    # for z_ev in range(2**params['helper_bits']):
-                    # concat the output wires to the view, check that the top part is id, bottom eq to ev
-                    view = get_view(Gb, params['input_bits'], i, j, z_gb)
-                    outs = Gb[i][z_gb].with_rows(output_rows)
-                    for k in range(params['output_bits']):
-                        if params['gate'](i,j)[k]:
-                            outs[k][params['delta']] = Not( outs[k][params['delta']] )
-                    checkL  = view.concat_rows(outs)
-                    checkL_ = checkL.mul(B[i][j][z_gb])
-                    I = id_matrix(view.nrows, view.ncols)
-                    checkR = I.concat_rows(Ev[j][z_ev])
-                    ev_correct = checkL_.eq(checkR)
-
-                    # each evaluator oracle query equals one in the basis changed garble constraints
-                    Gb_C_ = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
-                    matched_oracles = T
-                    for ev_c in Ev_C[j][z_ev]:
-                        c = ExactlyOne( map(lambda d: ev_c.eq(d), Gb_C_))
-                        matched_oracles = And(matched_oracles, c)
-                    corrects.append( And(ev_correct, matched_oracles) )
-                const = And(const, And( *corrects ))
+                    if 'helper_gate' in params:
+                        z_ev = params['helper_gate'](i,j,z_gb)
+                        p = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
+                    else:
+                        p = F
+                        for z_ev in range(2**params['helper_bits']):
+                            q = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
+                            p = Or(p, q)
+                    accum = And(accum, p)
                 pbar.update(1)
+    return accum
 
-    return const
+def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):
+    # concat the output wires to the view, check that the top part is id, bottom eq to ev
+    view = get_view(Gb, params['input_bits'], i, j, z_gb)
+    outs = Gb[i][z_gb].with_rows(params['output_rows'])
+    for k in range(params['output_bits']):
+        if params['gate'](i,j)[k]:
+            outs[k][params['delta']] = Not( outs[k][params['delta']] )
+    checkL = view.concat_rows(outs).mul(B[i][j][z_gb])
+    checkR = id_matrix(view.nrows, view.ncols).concat_rows(Ev[j][z_ev])
+    ev_correct = checkL.eq(checkR)
+
+    # each evaluator oracle query equals one in the basis changed garble constraints
+    Gb_C_ = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
+    matched_oracles = T
+    for ev_c in Ev_C[j][z_ev]:
+        c = ExactlyOne( map(lambda d: ev_c.eq(d), Gb_C_))
+        matched_oracles = And(matched_oracles, c)
+
+    return And(ev_correct, matched_oracles)
 
 def generate_gb(params):
     input_bits  = params['input_bits']
@@ -338,6 +341,7 @@ def generate_gb(params):
     if not 'helper_bits' in params:
         params['helper_bits'] = 0
     helper_bits = params['helper_bits']
+    params['output_rows'] = range( size, size + output_bits )
     print "params =", params
     ################################################################################
     ## variables
@@ -389,28 +393,35 @@ def generate_gb(params):
     # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
     I = id_matrix( width, width )
     bs_invertable = T
-    with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
+    # with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
         # for i in range(2**input_bits):
-        for i in range(1):
-            for j in range(2**input_bits):
-                for z in range(2**helper_bits):
-                    p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
-                    bs_invertable = And(bs_invertable, p)
-                    pbar.update(1)
-    # secure  = security(gb, cs, bs, params)
-    secure = T
-    correct = correctness(gb, cs, bs, ev, ec, params)
-    ham_gb = T
-    ham_ev = T
+            # for j in range(2**input_bits):
+                # for z in range(2**helper_bits):
+                    # p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
+                    # bs_invertable = And(bs_invertable, p)
+                    # pbar.update(1)
+    
+    secure  = security(gb, cs, bs, params)
+    # secure = T
+    # correct = correctness(gb, cs, bs, ev, ec, params)
+    correct = T
+
     if 'hamming_weight_gb' in params:
         print "max hamming weight (gb):", params['hamming_weight_gb']
-        ham_gb = mapall(lambda e: e.max_hamming_weight(params['hamming_weight_gb']), gb)
+        ham_gb = mapall(lambda outer: \
+            mapall(lambda e: e.max_hamming_weight(params['hamming_weight_gb']), outer), gb)
+    else:
+        ham_gb = T
     if 'hamming_weight_ev' in params:
         print "max hamming weight (ev):", params['hamming_weight_ev']
-        ham_ev = mapall(lambda outer: mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer),ev)
+        ham_ev = mapall(lambda outer: \
+            mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer), ev)
+    else:
+        ham_ev = T
     ################################################################################
     ## the formula
-    return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
+    # return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
+    return { 'formula': And(*[ secure, correct, ham_gb, ham_ev ])
            , 'params' : params
            , 'bs'     : bs
            , 'gb'     : gb
@@ -421,7 +432,7 @@ def generate_gb(params):
 
 def check(scheme):# {{{
     print "checking formula with z3..."
-    z3 = Solver('z3')
+    z3 = Solver(name='z3')
     z3.add_assertion(scheme['formula'])
     ok = z3.solve()
     if ok:
@@ -527,7 +538,7 @@ def print_model( scheme, model ):# {{{
 # }}}
 
 if __name__ == "__main__":
-    x = and_fan_in_3()
+    x = shortcuts(sys.argv[1])
     m = check(x)
     if m:
         print_model(x,m)
