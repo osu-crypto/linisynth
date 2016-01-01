@@ -289,7 +289,8 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
     output_rows = range( params['size'], params['size'] + params['output_bits'] )
     const = T
     with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
-        for i in range(2**params['input_bits']):
+        # for i in range(2**params['input_bits']):
+        for i in range(1):
             for j in range(2**params['input_bits']):
                 corrects = []
                 for z_gb in range(2**params['helper_bits']):
@@ -389,7 +390,8 @@ def generate_gb(params):
     I = id_matrix( width, width )
     bs_invertable = T
     with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
-        for i in range(2**input_bits):
+        # for i in range(2**input_bits):
+        for i in range(1):
             for j in range(2**input_bits):
                 for z in range(2**helper_bits):
                     p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
