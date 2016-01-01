@@ -35,6 +35,18 @@ def shortcuts(x):
         , "h_calls_ev"  : 0
         , "helper_bits" : 0
         }
+
+    d['nested_xor'] = \
+        { "gate"        : nested_xor_gate
+        , "size"        : 0
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 0
+        , "h_calls_ev"  : 0
+        , "helper_bits" : 0
+        }
+
     d['cheaper_and'] = \
         { "gate"        : and_gate
         , "size"        : 3
@@ -95,6 +107,12 @@ def and3_helper_gate(i, j, z_gb):
 def xor_gate(i, j):
     bs = bits(i^j, 2)
     return [bs[0] ^ bs[1]]
+
+def nested_xor_gate(i, j):
+    bs = bits(i^j, 3)
+    out = bs[0] ^ bs[1] ^ bs[2]
+    # print "i={} j={} i^j={} bits={} out={}".format(i, j, i^j, bs, out)
+    return [out]
 
 ################################################################################
 ## symbolic matrix class
@@ -258,18 +276,18 @@ def generate_constraints(n_constraints, arity, previous_fresh):
         cs.append( constraint( lhs, rhs ))
     return cs
 
-def get_view(Gb, input_bits, i, j, z):
+def get_view(Gb, params, i, j, z):
     width  = Gb[0][0].ncols
     size   = Gb[0][0].nrows
-    alphas = bits(i ^ j, input_bits)
-    v = smatrix(input_bits, width, initialize=False)
-    for row in range(input_bits):
+    alphas = bits(i ^ j, params['input_bits'])
+    v = smatrix(params['input_bits'], width, initialize=False)
+    for row in range(params['input_bits']):
         for col in range(width):
-            if row == col or (col == input_bits and alphas[row]):
+            if row == col or (col == params['input_bits'] and alphas[row]):
                 v[row][col] = T
             else:
                 v[row][col] = F
-    return v.concat_rows( Gb[i][z][:-1] ) # Gb[i] without its output row
+    return v.concat_rows( Gb[i][z][:-params['output_bits']] ) # Gb[i] without its output row
 
 def right_zeros(v, num_nonzero):
     return Not(Or(*v[num_nonzero:]))
@@ -280,7 +298,7 @@ def security(Gb, Gb_C, B, params):
         for i in range(2**params['input_bits']):
             for j in range(2**params['input_bits']):
                 for z in range(2**params['helper_bits']):
-                    view   = get_view(Gb, params['input_bits'], i, j, z)
+                    view   = get_view(Gb, params, i, j, z)
                     s      = security_(view, Gb_C[i][z], B[i][j][z], params['reach'], params['delta'])
                     secure = And(secure, s)
                     pbar.update(1)
@@ -317,7 +335,7 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
 
 def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):
     # concat the output wires to the view, check that the top part is id, bottom eq to ev
-    view = get_view(Gb, params['input_bits'], i, j, z_gb)
+    view = get_view(Gb, params, i, j, z_gb)
     outs = Gb[i][z_gb].with_rows(params['output_rows'])
     for k in range(params['output_bits']):
         if params['gate'](i,j)[k]:
@@ -343,7 +361,7 @@ def generate_gb(params):
     h_calls_ev  = params['h_calls_ev']
     gate        = params['gate']
     size        = params['size']
-    width       = params['width']       = input_bits + 1 + h_calls_gb
+    width       = params['width']       = input_bits + output_bits + h_calls_gb
     reach       = params['reach']       = size + input_bits + h_calls_ev
     ev_width    = params['ev_width']    = size + input_bits + h_calls_ev
     delta       = params['delta']       = input_bits
@@ -378,8 +396,8 @@ def generate_gb(params):
                 bs[i].append([])
                 bi[i].append([])
                 for z in range(2**helper_bits):
-                    b    = smatrix( width, width, { 2:[F]*(width-1)+[T] })
-                    view = get_view(gb, input_bits, i, j, z)
+                    b    = smatrix( width, width, { params['delta']:[F]*(width-1)+[T] })
+                    view = get_view(gb, params, i, j, z)
                     b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
                     bs[i][j].append(b)
                     bi[i][j].append(b_)
@@ -430,7 +448,6 @@ def generate_gb(params):
     ################################################################################
     ## the formula
     return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
-    # return { 'formula': And(*[ secure, correct, ham_gb, ham_ev ])
            , 'params' : params
            , 'bs'     : bs
            , 'gb'     : gb
