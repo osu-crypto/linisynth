@@ -52,12 +52,21 @@ def shortcuts(x):
         , "h_arity"     : 1
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 2
-        # , "helper_bits" : 1
+        }
+    d['one-third-gate'] = \
+        { "gate"        : and_gate
+        , "size"        : 1
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 2
+        , "h_calls_ev"  : 1
+        , "helper_bits" : 1
         # , "hamming_weight_ev": 3
         }
     d['and3'] = \
         { "gate"        : and3_gate
-        , "size"        : 3
+        , "size"        : 4
         , "input_bits"  : 3
         , "output_bits" : 1
         , "h_arity"     : 1
@@ -393,18 +402,18 @@ def generate_gb(params):
     # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
     I = id_matrix( width, width )
     bs_invertable = T
-    # with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
-        # for i in range(2**input_bits):
-            # for j in range(2**input_bits):
-                # for z in range(2**helper_bits):
-                    # p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
-                    # bs_invertable = And(bs_invertable, p)
-                    # pbar.update(1)
+    with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
+        for i in range(2**input_bits):
+            for j in range(2**input_bits):
+                for z in range(2**helper_bits):
+                    p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
+                    bs_invertable = And(bs_invertable, p)
+                    pbar.update(1)
     
     secure  = security(gb, cs, bs, params)
     # secure = T
-    # correct = correctness(gb, cs, bs, ev, ec, params)
-    correct = T
+    correct = correctness(gb, cs, bs, ev, ec, params)
+    # correct = T
 
     if 'hamming_weight_gb' in params:
         print "max hamming weight (gb):", params['hamming_weight_gb']
@@ -420,8 +429,8 @@ def generate_gb(params):
         ham_ev = T
     ################################################################################
     ## the formula
-    # return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
-    return { 'formula': And(*[ secure, correct, ham_gb, ham_ev ])
+    return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
+    # return { 'formula': And(*[ secure, correct, ham_gb, ham_ev ])
            , 'params' : params
            , 'bs'     : bs
            , 'gb'     : gb
