@@ -129,12 +129,11 @@ def shortcuts(x):
     d['adder'] = \
         { "gate"        : adder_gate
         , "size"        : 2
-        , "input_bits"  : 2
+        , "input_bits"  : 3
         , "output_bits" : 2
         , "h_arity"     : 1
         , "h_calls_gb"  : 4
-        # , "h_calls_ev"  : 2
-        , "h_calls_ev"  : 1
+        , "h_calls_ev"  : 2
         , "helper_bits" : 0
         }
     return generate_gb(d[x])
@@ -163,10 +162,10 @@ def nested_xor_gate(i, j):
     return [bs[0] ^ bs[1] ^ bs[2]]
 
 def adder_gate(i,j):
-    [x,y] = bits(i^j, 2)
-    z = x ^ y
-    c = x & y
-    return [z, c]
+    [x, y, cin] = bits(i^j, 3)
+    z = x ^ y ^ cin
+    cout = (x & y) | (z & cin)
+    return [z, cout]
 
 ################################################################################
 ## helper gates
