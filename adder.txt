@@ -1,0 +1,67 @@
+params = {'ev_width': 6, 'h_arity': 1, 'reach': 6, 'output_rows': [2, 3], 'h_calls_gb': 4, 'delta': 2, 'size': 2, 'helper_bits': 0, 'input_bits': 2, 'output_bits': 2, 'width': 7, 'gate': <function adder_gate at 0x7f638a8445f0>, 'h_calls_ev': 2}
+checking formula with z3...                                                                                           
+---i=0,z=0---
+Gb:
+	h0 = H(A + B + delta)
+	h1 = H(A + B)
+	h2 = H(h0 + h1)
+	h3 = H(B)
+	F0 = B + delta + h0 + h1 + h2 + h3
+	F1 = B + delta + h0 + h1
+	C0 = A + delta + h0 + h1 + h2 + h3
+	C1 = A + h1 + h3
+---i=1,z=0---
+Gb:
+	h0 = H(A + B)
+	h1 = H(B)
+	h2 = H(A + B + delta)
+	h3 = H(h0 + h2)
+	F0 = B + h0 + h1 + h2 + h3
+	F1 = B + delta + h0 + h2
+	C0 = A + h0 + h1 + h2 + h3
+	C1 = A + delta + h1 + h2
+---i=2,z=0---
+Gb:
+	h0 = H(A + B)
+	h1 = H(A + B + delta)
+	h2 = H(delta + h0 + h1)
+	h3 = H(B + delta)
+	F0 = B + h0 + h1 + h2 + h3
+	F1 = B + delta + h0 + h1
+	C0 = A + h0 + h1 + h2 + h3
+	C1 = A + h1 + h3
+---i=3,z=0---
+Gb:
+	h0 = H(A + B)
+	h1 = H(B + delta)
+	h2 = H(A + B + delta)
+	h3 = H(delta + h0 + h2)
+	F0 = B + delta + h0 + h1 + h2 + h3
+	F1 = B + delta + h0 + h2
+	C0 = A + delta + h0 + h1 + h2 + h3
+	C1 = A + h0 + h1
+---j=0,z=0---
+Ev:
+	h0 = H(B)
+	h1 = H(A + B)
+	C0 = A + B + F0
+	C1 = A + h0 + h1
+---j=1,z=0---
+Ev:
+	h0 = H(B)
+	h1 = H(A + B)
+	C0 = A + B + F0
+	C1 = A + B + F1 + h0 + h1
+---j=2,z=0---
+Ev:
+	h0 = H(B + F1)
+	h1 = H(A + B)
+	C0 = A + B + F0
+	C1 = A + B + F0 + h0 + h1
+---j=3,z=0---
+Ev:
+	h0 = H(B + F1)
+	h1 = H(A + B)
+	C0 = A + B + F0
+	C1 = A + F0 + F1 + h0 + h1
+

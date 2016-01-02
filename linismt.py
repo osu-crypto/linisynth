@@ -125,6 +125,18 @@ def shortcuts(x):
         , "h_calls_ev"  : 4
         , "helper_bits" : 0
         }
+
+    d['adder'] = \
+        { "gate"        : adder_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        # , "h_calls_ev"  : 2
+        , "h_calls_ev"  : 1
+        , "helper_bits" : 0
+        }
     return generate_gb(d[x])
 
 ################################################################################
@@ -149,6 +161,12 @@ def andxor_gate(i,j):
 def nested_xor_gate(i, j):
     bs = bits(i^j, 3)
     return [bs[0] ^ bs[1] ^ bs[2]]
+
+def adder_gate(i,j):
+    [x,y] = bits(i^j, 2)
+    z = x ^ y
+    c = x & y
+    return [z, c]
 
 ################################################################################
 ## helper gates
@@ -404,7 +422,7 @@ def generate_gb(params):
     h_calls_ev  = params['h_calls_ev']
     gate        = params['gate']
     size        = params['size']
-    width       = params['width']       = input_bits + output_bits + h_calls_gb
+    width       = params['width']       = input_bits + 1 + h_calls_gb
     reach       = params['reach']       = size + input_bits + h_calls_ev
     ev_width    = params['ev_width']    = size + input_bits + h_calls_ev
     delta       = params['delta']       = input_bits
@@ -497,17 +515,17 @@ def generate_gb(params):
            , 'ec'     : ec
            }
 
-def check(scheme):# {{{
-    print "checking formula with z3..."
-    z3 = Solver(name='z3')
-    z3.add_assertion(scheme['formula'])
-    ok = z3.solve()
+def check(scheme, solver='z3'):# {{{
+    print "checking formula with {}...".format(solver)
+    s = Solver(name=solver)
+    s.add_assertion(scheme['formula'])
+    ok = s.solve()
     if ok:
-        m = z3.get_model()
-        z3.exit()
+        m = s.get_model()
+        s.exit()
         return m
     else:
-        z3.exit()
+        s.exit()
 # }}}
 def reverse_mapping( scheme, model ):# {{{
     scheme_ = {}
@@ -606,7 +624,11 @@ def print_model( scheme, model ):# {{{
 
 if __name__ == "__main__":
     x = shortcuts(sys.argv[1])
-    m = check(x)
+    if len(sys.argv) >= 3:
+        solver = sys.argv[2]
+    else:
+        solver = 'z3'
+    m = check(x, solver)
     if m:
         print_model(x,m)
     else:
