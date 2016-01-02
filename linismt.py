@@ -25,7 +25,7 @@ def bits(x, size):
 
 def shortcuts(x):
     d = {}
-    d['free_xor'] = \
+    d['free-xor'] = \
         { "gate"        : xor_gate
         , "size"        : 0
         , "input_bits"  : 2
@@ -36,7 +36,7 @@ def shortcuts(x):
         , "helper_bits" : 0
         }
 
-    d['nested_xor'] = \
+    d['nested-xor'] = \
         { "gate"        : nested_xor_gate
         , "size"        : 0
         , "input_bits"  : 3
@@ -47,7 +47,19 @@ def shortcuts(x):
         , "helper_bits" : 0
         }
 
-    d['cheaper_and'] = \
+    d['andxor'] = \
+        { "gate"        : andxor_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        # , "helper_gate" : and3_helper_gate
+        }
+
+    d['cheaper-and'] = \
         { "gate"        : and_gate
         , "size"        : 3
         , "input_bits"  : 2
@@ -56,7 +68,8 @@ def shortcuts(x):
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 1
         }
-    d['half_gate'] = \
+
+    d['half-gate'] = \
         { "gate"        : and_gate
         , "size"        : 2
         , "input_bits"  : 2
@@ -65,6 +78,7 @@ def shortcuts(x):
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 2
         }
+
     d['one-third-gate'] = \
         { "gate"        : and_gate
         , "size"        : 1
@@ -76,6 +90,7 @@ def shortcuts(x):
         , "helper_bits" : 1
         # , "hamming_weight_ev": 3
         }
+
     d['and3'] = \
         { "gate"        : and3_gate
         , "size"        : 4
@@ -86,6 +101,29 @@ def shortcuts(x):
         , "h_calls_ev"  : 4
         , "helper_bits" : 1
         , "helper_gate" : and3_helper_gate
+        }
+
+    d['and3-smaller'] = \
+        { "gate"        : and3_gate
+        , "size"        : 3
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 1
+        , "helper_gate" : and3_helper_gate
+        }
+
+    d['and3-nohelper'] = \
+        { "gate"        : and3_gate
+        , "size"        : 4
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 0
         }
     return generate_gb(d[x])
 
@@ -100,19 +138,24 @@ def and3_gate(i, j):
     bs = bits(i^j, 3)
     return [bs[0] and bs[1] and bs[2]]
 
-def and3_helper_gate(i, j, z_gb):
-    [a0,a1,a2] = bits(i^j, 3)
-    return (a0 & a1) ^ z_gb
-
 def xor_gate(i, j):
     bs = bits(i^j, 2)
     return [bs[0] ^ bs[1]]
 
+def andxor_gate(i,j):
+    bs = bits(i^j, 3)
+    return [(bs[0] & bs[1]) ^ bs[2]]
+
 def nested_xor_gate(i, j):
     bs = bits(i^j, 3)
-    out = bs[0] ^ bs[1] ^ bs[2]
-    # print "i={} j={} i^j={} bits={} out={}".format(i, j, i^j, bs, out)
-    return [out]
+    return [bs[0] ^ bs[1] ^ bs[2]]
+
+################################################################################
+## helper gates
+
+def and3_helper_gate(i, j, z_gb):
+    [a0,a1,a2] = bits(i^j, 3)
+    return (a0 & a1) ^ z_gb
 
 ################################################################################
 ## symbolic matrix class
@@ -348,7 +391,7 @@ def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):
     Gb_C_ = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
     matched_oracles = T
     for ev_c in Ev_C[j][z_ev]:
-        c = ExactlyOne( map(lambda d: ev_c.eq(d), Gb_C_))
+        c = Or( *map(lambda d: ev_c.eq(d), Gb_C_))
         matched_oracles = And(matched_oracles, c)
 
     return And(ev_correct, matched_oracles)
@@ -396,7 +439,7 @@ def generate_gb(params):
                 bs[i].append([])
                 bi[i].append([])
                 for z in range(2**helper_bits):
-                    b    = smatrix( width, width, { params['delta']:[F]*(width-1)+[T] })
+                    b    = smatrix( width, width, { delta:[F]*(width-1)+[T] })
                     view = get_view(gb, params, i, j, z)
                     b_   = view.concat_rows(smatrix(view.ncols - view.nrows, width))
                     bs[i][j].append(b)
@@ -433,18 +476,16 @@ def generate_gb(params):
     correct = correctness(gb, cs, bs, ev, ec, params)
     # correct = T
 
+    ham_gb = T
     if 'hamming_weight_gb' in params:
         print "max hamming weight (gb):", params['hamming_weight_gb']
         ham_gb = mapall(lambda outer: \
             mapall(lambda e: e.max_hamming_weight(params['hamming_weight_gb']), outer), gb)
-    else:
-        ham_gb = T
+    ham_ev = T
     if 'hamming_weight_ev' in params:
         print "max hamming weight (ev):", params['hamming_weight_ev']
         ham_ev = mapall(lambda outer: \
             mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer), ev)
-    else:
-        ham_ev = T
     ################################################################################
     ## the formula
     return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
