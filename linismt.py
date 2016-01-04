@@ -21,7 +21,7 @@ def bits(x, size):
     return [ (x&(2**i)>0) for i in range(size) ]
 
 ################################################################################
-## shortcuts
+## shortcuts# {{{
 
 def shortcuts(x):
     d = {}
@@ -136,9 +136,9 @@ def shortcuts(x):
         , "helper_bits" : 0
         }
     return generate_gb(d[x])
-
+# }}}
 ################################################################################
-## gates
+## gates# {{{
 
 def and_gate(i, j):
     bs = bits(i^j, 2)
@@ -165,16 +165,17 @@ def adder_gate(i,j):
     z = x ^ y ^ cin
     cout = (x & y) | (z & cin)
     return [z, cout]
-
+# }}}
 ################################################################################
-## helper gates
+## helper gates# {{{
 
 def and3_helper_gate(i, j, z_gb):
     [a0,a1,a2] = bits(i^j, 3)
     return (a0 & a1) ^ z_gb
 
+# }}}
 ################################################################################
-## symbolic matrix class
+## symbolic matrix class# {{{
 
 class smatrix (list):
     def __init__(self, nrows, ncols, premapping={}, initialize=True):
@@ -288,8 +289,12 @@ def vec_eq(v, w):
     cs = [ Not(Xor(x,y)) for (x,y) in zip(vp,wp) ]
     return And(*cs)
 
+def right_zeros(v, num_nonzero):
+    return Not(Or(*v[num_nonzero:]))
+
+# }}}
 ################################################################################
-## oracle constraint class
+## oracle constraint class# {{{
 
 class constraint:
     def __init__(self, lhs, rhs):
@@ -311,11 +316,10 @@ class constraint:
 
     def eq(self, other):
         return And( self.lhs.eq(other.lhs), self.rhs.eq(other.rhs) )
-
+# }}}
 ################################################################################
 ## formula generation
-
-def generate_constraints(n_constraints, arity, previous_fresh):
+def generate_constraints(n_constraints, arity, previous_fresh):# {{{
     n_fresh = n_constraints + previous_fresh
     cs = []
     for i in range(n_constraints):
@@ -334,8 +338,8 @@ def generate_constraints(n_constraints, arity, previous_fresh):
                 rhs[0][k] = F
         cs.append( constraint( lhs, rhs ))
     return cs
-
-def get_view(Gb, params, i, j, z):
+# }}}
+def get_view(Gb, params, i, j, z):# {{{
     width  = Gb[0][0].ncols
     size   = Gb[0][0].nrows
     alphas = bits(i ^ j, params['input_bits'])
@@ -347,11 +351,9 @@ def get_view(Gb, params, i, j, z):
             else:
                 v[row][col] = F
     return v.concat_rows( Gb[i][z][:-params['output_bits']] ) # Gb[i] without its output row
+# }}}
 
-def right_zeros(v, num_nonzero):
-    return Not(Or(*v[num_nonzero:]))
-
-def security(Gb, Gb_C, B, params):
+def security(Gb, Gb_C, B, params):# {{{
     secure = T
     with tqdm.tqdm(total=2**(2*params['input_bits']+params['helper_bits']), desc="security") as pbar:
         for i in range(2**params['input_bits']):
@@ -362,8 +364,8 @@ def security(Gb, Gb_C, B, params):
                     secure = And(secure, s)
                     pbar.update(1)
     return secure
-
-def security_(view, Cs, B, reach, delta):
+# }}}
+def security_(view, Cs, B, reach, delta):# {{{
     mat_const = And(*[ right_zeros(row, reach) for row in view.mul(B) ] )
     con_const = T
     for C in Cs:
@@ -373,31 +375,46 @@ def security_(view, Cs, B, reach, delta):
         con_const = And( con_const, Implies(p, q) )
     basis_const = Not( right_zeros( B[delta], reach ))
     return And(*[ mat_const, con_const, basis_const ])
+# }}}
 
-def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
+def helper_bit_permuted( z_assns ):# {{{
+    z_assns_ = smatrix(2, 2, initialize=False)
+    for row in range(len(z_assns)):
+        z_assns_[row] = z_assns[row]
+    zij_0 = smatrix(2, 2, { 0: [T, F], 1: [F, T] })
+    zij_1 = smatrix(2, 2, { 0: [F, T], 1: [T, F] })
+    zij_is_0 = zij_0.eq(z_assns_)
+    zij_is_1 = zij_1.eq(z_assns_)
+    return (ExactlyOne([zij_is_0, zij_is_1]), zij_is_1)
+# }}}
+def correctness(Gb, Gb_C, B, Ev, Ev_C, params):# {{{
     accum = T
-    z_assns = {}
+    zijs  = {}
     with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
         for i in range(2**params['input_bits']):
             for j in range(2**params['input_bits']):
-                z_assns[(i,j)] = []
+                z_assns = []
                 for z_gb in range(2**params['helper_bits']):
                     if 'helper_gate' in params:
                         z_ev = params['helper_gate'](i,j,z_gb)
                         p = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
-                        z_assns[(i,j)].append([F,T] if z_ev else [T,F])
+                        z_assns.append([F,T] if z_ev else [T,F])
                     else:
-                        ps = []
+                        qs = []
                         for z_ev in range(2**params['helper_bits']):
-                            p = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
-                            ps.append(p)
-                        z_assns[(i,j)].append(ps)
-                        p = ExactlyOne(ps)
+                            q = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
+                            qs.append(q)
+                        z_assns.append(qs)
+                        p = Or(*qs)
                     accum = And(accum, p)
+                if params['helper_bits'] == 1: # TODO expand to general case
+                    (q,zij) = helper_bit_permuted(z_assns)
+                    accum = And(accum, q)
+                    zijs[(i,j)] = zij
                 pbar.update(1)
-    return (accum, z_assns)
-
-def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):
+    return (accum, zijs)
+# }}}
+def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):# {{{
     # concat the output wires to the view, check that the top part is id, bottom eq to ev
     view = get_view(Gb, params, i, j, z_gb)
     outs = Gb[i][z_gb].with_rows(params['output_rows'])
@@ -416,8 +433,9 @@ def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):
         matched_oracles = And(matched_oracles, c)
 
     return And(ev_correct, matched_oracles)
+# }}}
 
-def generate_gb(params):
+def generate_gb(params):# {{{
     input_bits  = params['input_bits']
     output_bits = params['output_bits']
     h_arity     = params['h_arity']
@@ -494,7 +512,7 @@ def generate_gb(params):
     
     secure  = security(gb, cs, bs, params)
     # secure = T
-    (correct, z_assns) = correctness(gb, cs, bs, ev, ec, params)
+    (correct, zijs) = correctness(gb, cs, bs, ev, ec, params)
     # correct = T
 
     ham_gb = T
@@ -516,8 +534,9 @@ def generate_gb(params):
            , 'cs'      : cs
            , 'ev'      : ev
            , 'ec'      : ec
-           , 'z_assns' : z_assns
+           , 'zijs'    : zijs
            }
+# }}}
 
 def check(scheme, solver='z3'):# {{{
     print "checking formula with {}...".format(solver)
@@ -539,12 +558,18 @@ def reverse_mapping( scheme, model ):# {{{
     scheme_['cs'] = []
     scheme_['ec'] = []
     scheme_['bs'] = []
+    scheme_['zijs'] = {}
     for i in range(2**scheme['params']['input_bits']):
         scheme_['bs'].append([])
         for j in range(2**scheme['params']['input_bits']):
             scheme_['bs'][i].append([])
             for z in range(2**scheme['params']['helper_bits']):
                 scheme_['bs'][i][j].append( scheme['bs'][i][j][z].reverse_mapping(model) )
+
+            # find out values of zijs
+            if scheme['params']['helper_bits']:
+                for k,v in scheme['zijs']:
+                    scheme_['zijs'][k] = 1 if model.get_value(v).is_true() else 0
 
         scheme_['gb'].append([])
         scheme_['ev'].append([])
@@ -570,6 +595,12 @@ def print_mapping( scheme ):# {{{
             if row[col]: 
                 args.append(names[col])
         return " + ".join(args)
+    # print values of zijs
+    if scheme['params']['helper_bits']:
+        for i in range(len(scheme['gb'])):
+            for j in range(len(scheme['ev'])):
+                print "i={} j={}".format(i,j), scheme['zijs'][(i,j)]
+    # print the scheme
     for i in range(len(scheme['gb'])):
         for z in range(len(scheme['gb'][i])):
             print "---i={},z={}---".format(i,z)
