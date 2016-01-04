@@ -1,0 +1,82 @@
+params = {'ev_width': 4, 'h_arity': 1, 'reach': 4, 'output_rows': [1], 'h_calls_gb': 2, 'delta': 2, 'size': 1, 'helper_bits': 1, 'input_bits': 2, 'output_bits': 1, 'width': 5, 'gate': <function and_gate at 0x7f934b802398>, 'h_calls_ev': 1}
+checking formula with z3...
+---i=0,z=0---
+Gb:
+	h0 = H(B + delta)
+	h1 = H(B)
+	F0 = A + B + delta + h0 + h1
+	C0 = A + B + delta + h0
+---i=0,z=1---
+Gb:
+	h0 = H(B + delta)
+	h1 = H(B)
+	F0 = A + B + delta + h0 + h1
+	C0 = A + B + delta + h0
+---i=1,z=0---
+Gb:
+	h0 = H(B)
+	h1 = H(B + delta)
+	F0 = A + B + delta + h0 + h1
+	C0 = A + B + delta + h1
+---i=1,z=1---
+Gb:
+	h0 = H(B)
+	h1 = H(B + delta)
+	F0 = A + B + delta + h0 + h1
+	C0 = A + B + delta + h1
+---i=2,z=0---
+Gb:
+	h0 = H(B)
+	h1 = H(B + delta)
+	F0 = A + delta + h0 + h1
+	C0 = A + B + delta + h1
+---i=2,z=1---
+Gb:
+	h0 = H(B)
+	h1 = H(B + delta)
+	F0 = A + delta + h0 + h1
+	C0 = A + B + delta + h1
+---i=3,z=0---
+Gb:
+	h0 = H(B)
+	h1 = H(B + delta)
+	F0 = A + delta + h0 + h1
+	C0 = A + B + delta + h1
+---i=3,z=1---
+Gb:
+	h0 = H(B + delta)
+	h1 = H(B)
+	F0 = A + delta + h0 + h1
+	C0 = A + B + delta + h0
+---j=0,z=0---
+Ev:
+	h0 = H(B)
+	C0 = A + B + h0
+---j=0,z=1---
+Ev:
+	h0 = H(B)
+	C0 = F0 + h0
+---j=1,z=0---
+Ev:
+	h0 = H(B)
+	C0 = F0 + h0
+---j=1,z=1---
+Ev:
+	h0 = H(B)
+	C0 = A + B + h0
+---j=2,z=0---
+Ev:
+	h0 = H(B)
+	C0 = A + B + h0
+---j=2,z=1---
+Ev:
+	h0 = H(B)
+	C0 = B + F0 + h0
+---j=3,z=0---
+Ev:
+	h0 = H(B)
+	C0 = B + F0 + h0
+---j=3,z=1---
+Ev:
+	h0 = H(B)
+	C0 = A + B + h0

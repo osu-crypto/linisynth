@@ -88,7 +88,6 @@ def shortcuts(x):
         , "h_calls_gb"  : 2
         , "h_calls_ev"  : 1
         , "helper_bits" : 1
-        # , "hamming_weight_ev": 3
         }
 
     d['and3'] = \
@@ -377,21 +376,26 @@ def security_(view, Cs, B, reach, delta):
 
 def correctness(Gb, Gb_C, B, Ev, Ev_C, params):
     accum = T
+    z_assns = {}
     with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
         for i in range(2**params['input_bits']):
             for j in range(2**params['input_bits']):
+                z_assns[(i,j)] = []
                 for z_gb in range(2**params['helper_bits']):
                     if 'helper_gate' in params:
                         z_ev = params['helper_gate'](i,j,z_gb)
                         p = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
+                        z_assns[(i,j)].append([F,T] if z_ev else [T,F])
                     else:
-                        p = F
+                        ps = []
                         for z_ev in range(2**params['helper_bits']):
-                            q = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
-                            p = Or(p, q)
+                            p = correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params)
+                            ps.append(p)
+                        z_assns[(i,j)].append(ps)
+                        p = ExactlyOne(ps)
                     accum = And(accum, p)
                 pbar.update(1)
-    return accum
+    return (accum, z_assns)
 
 def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):
     # concat the output wires to the view, check that the top part is id, bottom eq to ev
@@ -490,7 +494,7 @@ def generate_gb(params):
     
     secure  = security(gb, cs, bs, params)
     # secure = T
-    correct = correctness(gb, cs, bs, ev, ec, params)
+    (correct, z_assns) = correctness(gb, cs, bs, ev, ec, params)
     # correct = T
 
     ham_gb = T
@@ -505,13 +509,14 @@ def generate_gb(params):
             mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer), ev)
     ################################################################################
     ## the formula
-    return { 'formula': And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
-           , 'params' : params
-           , 'bs'     : bs
-           , 'gb'     : gb
-           , 'cs'     : cs
-           , 'ev'     : ev
-           , 'ec'     : ec
+    return { 'formula' : And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
+           , 'params'  : params
+           , 'bs'      : bs
+           , 'gb'      : gb
+           , 'cs'      : cs
+           , 'ev'      : ev
+           , 'ec'      : ec
+           , 'z_assns' : z_assns
            }
 
 def check(scheme, solver='z3'):# {{{
@@ -579,11 +584,9 @@ def print_mapping( scheme ):# {{{
             gb_names.append('delta')
             cur_inp = 0
             for row in range(params['h_calls_gb']):
-                var = 'h' + str(cur_inp)
-                cur_inp += 1
-                gb_names.append(var)
                 args = map(lambda a: args_str(a, gb_names), cs[row].lhs)
-                print "\t{} = H({})".format(var, ", ".join(args))
+                var = "H({})".format(", ".join(args))
+                gb_names.append(var)
             for row in range(len(gb)):
                 if row < params['size']:
                     name = 'F' + str(row)
@@ -607,11 +610,9 @@ def print_mapping( scheme ):# {{{
                 cur_inp += 1
             cur_inp = 0
             for row in range(params['h_calls_ev']):
-                var = 'h' + str(cur_inp)
-                cur_inp += 1
-                ev_names.append(var)
                 args = map(lambda a: args_str(a, ev_names), ec[row].lhs)
-                print "\t{} = H({})".format(var, ", ".join(args))
+                var = "H({})".format(", ".join(args))
+                ev_names.append(var)
             for row in range(len(ev)):
                 name = 'C' + str(row)
                 print "\t{} = {}".format( name, args_str(ev[row], ev_names) )
