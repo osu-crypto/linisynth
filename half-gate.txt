@@ -1,0 +1,34 @@
+params = {'helper_bits': 0, 'h_arity': 1, 'reach': 6, 'output_rows': [2], 'h_calls_gb': 4, 'delta': 2, 'size': 2, 'ev_width': 6, 'input_bits': 2, 'output_bits': 1, 'width': 7, 'gate': <function and_gate at 0x7f62ef8b0398>, 'adaptive': 0, 'h_calls_ev': 2}
+checking formula with z3...
+---i=0,z=0---
+Gb:
+	F0 = A + B + delta + H(A + B) + H(A + B + delta)
+	F1 = delta + H(A + B) + H(B) + H(A + B + delta) + H(B + delta)
+	C0 = B + delta + H(A + B + delta) + H(B + delta)
+---i=1,z=0---
+Gb:
+	F0 = A + B + H(A + B + delta) + H(A + B)
+	F1 = H(A + B + delta) + H(B) + H(A + B) + H(B + delta)
+	C0 = B + H(A + B) + H(B + delta)
+---i=2,z=0---
+Gb:
+	F0 = A + B + delta + H(A + B + delta) + H(A + B)
+	F1 = delta + H(A + B + delta) + H(A + B) + H(B + delta) + H(B)
+	C0 = B + H(A + B) + H(B)
+---i=3,z=0---
+Gb:
+	F0 = A + B + H(A + B) + H(A + B + delta)
+	F1 = H(A + B) + H(A + B + delta) + H(B) + H(B + delta)
+	C0 = B + H(A + B + delta) + H(B)
+---j=0,z=0---
+Ev:
+	C0 = B + F1 + H(B) + H(A + B)
+---j=1,z=0---
+Ev:
+	C0 = A + F0 + F1 + H(A + B) + H(B)
+---j=2,z=0---
+Ev:
+	C0 = B + H(A + B) + H(B)
+---j=3,z=0---
+Ev:
+	C0 = A + F0 + H(A + B) + H(B)

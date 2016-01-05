@@ -33,7 +33,7 @@ def shortcuts(x):
         , "h_arity"     : 1
         , "h_calls_gb"  : 0
         , "h_calls_ev"  : 0
-        , "helper_bits" : 0
+        , "helper_bits" : 1
         }
 
     d['nested-xor'] = \
@@ -77,16 +77,27 @@ def shortcuts(x):
         , "h_arity"     : 1
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 2
+        , "adaptive"    : 0
+        }
+
+    d['half-gate-cheaper'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
         }
 
     d['one-third-gate'] = \
         { "gate"        : and_gate
-        , "size"        : 1
+        , "size"        : 2
         , "input_bits"  : 2
         , "output_bits" : 1
         , "h_arity"     : 1
-        , "h_calls_gb"  : 2
-        , "h_calls_ev"  : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
         , "helper_bits" : 1
         }
 
@@ -319,7 +330,7 @@ class constraint:
 # }}}
 ################################################################################
 ## formula generation
-def generate_constraints(n_constraints, arity, previous_fresh):# {{{
+def generate_constraints(n_constraints, arity, previous_fresh, adaptive=True):# {{{
     n_fresh = n_constraints + previous_fresh
     cs = []
     for i in range(n_constraints):
@@ -327,7 +338,9 @@ def generate_constraints(n_constraints, arity, previous_fresh):# {{{
         rhs = smatrix( 1,     n_fresh, initialize=False )
         for j in range( arity ):
             for k in range( n_fresh ): 
-                if k < i + previous_fresh:
+                if k < previous_fresh:
+                    lhs[j][k] = FreshSymbol(BOOL)
+                elif adaptive and previous_fresh <= k < i + previous_fresh:
                     lhs[j][k] = FreshSymbol(BOOL)
                 else:
                     lhs[j][k] = F
@@ -377,15 +390,10 @@ def security_(view, Cs, B, reach, delta):# {{{
     return And(*[ mat_const, con_const, basis_const ])
 # }}}
 
-def helper_bit_permuted( z_assns ):# {{{
-    z_assns_ = smatrix(2, 2, initialize=False)
-    for row in range(len(z_assns)):
-        z_assns_[row] = z_assns[row]
-    zij_0 = smatrix(2, 2, { 0: [T, F], 1: [F, T] })
-    zij_1 = smatrix(2, 2, { 0: [F, T], 1: [T, F] })
-    zij_is_0 = zij_0.eq(z_assns_)
-    zij_is_1 = zij_1.eq(z_assns_)
-    return (ExactlyOne([zij_is_0, zij_is_1]), zij_is_1)
+def helper_bit_permuted( m ):# {{{
+    p = And(m[0][0], m[1][1])
+    q = And(m[0][1], m[1][0])
+    return (Or(p,q), q)
 # }}}
 def correctness(Gb, Gb_C, B, Ev, Ev_C, params):# {{{
     accum = T
@@ -413,6 +421,7 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):# {{{
                     zijs[(i,j)] = zij
                 pbar.update(1)
     return (accum, zijs)
+
 # }}}
 def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):# {{{
     # concat the output wires to the view, check that the top part is id, bottom eq to ev
@@ -447,6 +456,9 @@ def generate_gb(params):# {{{
     reach       = params['reach']       = size + input_bits + h_calls_ev
     ev_width    = params['ev_width']    = size + input_bits + h_calls_ev
     delta       = params['delta']       = input_bits
+    if not 'adaptive' in params:
+        params['adaptive'] = 1
+    adaptive = params['adaptive']
     if not 'helper_bits' in params:
         params['helper_bits'] = 0
     helper_bits = params['helper_bits']
@@ -463,7 +475,7 @@ def generate_gb(params):# {{{
             cs.append([])
             for z in range(2**helper_bits):
                 g = smatrix( size + output_bits, width )
-                c = generate_constraints( h_calls_gb, h_arity, input_bits+1 )
+                c = generate_constraints( h_calls_gb, h_arity, input_bits+1, adaptive)
                 gb[i].append(g)
                 cs[i].append(c)
                 pbar.update(1)
@@ -566,10 +578,10 @@ def reverse_mapping( scheme, model ):# {{{
             for z in range(2**scheme['params']['helper_bits']):
                 scheme_['bs'][i][j].append( scheme['bs'][i][j][z].reverse_mapping(model) )
 
-            # find out values of zijs
-            if scheme['params']['helper_bits']:
-                for k,v in scheme['zijs']:
-                    scheme_['zijs'][k] = 1 if model.get_value(v).is_true() else 0
+            # # find out values of zijs
+            # if scheme['params']['helper_bits']:
+                # for k,v in scheme['zijs']:
+                    # scheme_['zijs'][k] = 1 if model.get_value(v).is_true() else 0
 
         scheme_['gb'].append([])
         scheme_['ev'].append([])
@@ -595,11 +607,13 @@ def print_mapping( scheme ):# {{{
             if row[col]: 
                 args.append(names[col])
         return " + ".join(args)
-    # print values of zijs
-    if scheme['params']['helper_bits']:
-        for i in range(len(scheme['gb'])):
-            for j in range(len(scheme['ev'])):
-                print "i={} j={}".format(i,j), scheme['zijs'][(i,j)]
+
+    # # print values of zijs
+    # if scheme['params']['helper_bits']:
+        # for i in range(len(scheme['gb'])):
+            # for j in range(len(scheme['ev'])):
+                # print "i={} j={}".format(i,j), scheme['zijs'][(i,j)]
+
     # print the scheme
     for i in range(len(scheme['gb'])):
         for z in range(len(scheme['gb'][i])):
