@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 
+# imports
 from pysmt.shortcuts import *
 from pysmt.typing import BOOL, INT
 import string
@@ -7,6 +8,11 @@ import itertools
 import copy
 import tqdm
 import sys
+import argparse
+import time
+
+################################################################################
+## helper functions and constants# {{{
 
 T = TRUE()
 F = FALSE()
@@ -19,134 +25,6 @@ def mapsome(f, stuff):
 
 def bits(x, size):
     return [ (x&(2**i)>0) for i in range(size) ]
-
-################################################################################
-## shortcuts# {{{
-
-def shortcuts(x):
-    d = {}
-    d['free-xor'] = \
-        { "gate"        : xor_gate
-        , "size"        : 0
-        , "input_bits"  : 2
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 0
-        , "h_calls_ev"  : 0
-        , "helper_bits" : 1
-        }
-
-    d['nested-xor'] = \
-        { "gate"        : nested_xor_gate
-        , "size"        : 0
-        , "input_bits"  : 3
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 0
-        , "h_calls_ev"  : 0
-        , "helper_bits" : 0
-        }
-
-    d['andxor'] = \
-        { "gate"        : andxor_gate
-        , "size"        : 2
-        , "input_bits"  : 3
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 4
-        , "h_calls_ev"  : 2
-        , "helper_bits" : 0
-        # , "helper_gate" : and3_helper_gate
-        }
-
-    d['cheaper-and'] = \
-        { "gate"        : and_gate
-        , "size"        : 3
-        , "input_bits"  : 2
-        , "output_bits" : 1
-        , "h_arity"     : 2
-        , "h_calls_gb"  : 4
-        , "h_calls_ev"  : 1
-        }
-
-    d['half-gate'] = \
-        { "gate"        : and_gate
-        , "size"        : 2
-        , "input_bits"  : 2
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 4
-        , "h_calls_ev"  : 2
-        , "adaptive"    : 0
-        }
-
-    d['half-gate-cheaper'] = \
-        { "gate"        : and_gate
-        , "size"        : 2
-        , "input_bits"  : 2
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 4
-        , "h_calls_ev"  : 1
-        }
-
-    d['one-third-gate'] = \
-        { "gate"        : and_gate
-        , "size"        : 2
-        , "input_bits"  : 2
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 4
-        , "h_calls_ev"  : 2
-        , "helper_bits" : 1
-        }
-
-    d['and3'] = \
-        { "gate"        : and3_gate
-        , "size"        : 4
-        , "input_bits"  : 3
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 8
-        , "h_calls_ev"  : 4
-        , "helper_bits" : 1
-        , "helper_gate" : and3_helper_gate
-        }
-
-    d['and3-smaller'] = \
-        { "gate"        : and3_gate
-        , "size"        : 3
-        , "input_bits"  : 3
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 8
-        , "h_calls_ev"  : 4
-        , "helper_bits" : 1
-        , "helper_gate" : and3_helper_gate
-        }
-
-    d['and3-nohelper'] = \
-        { "gate"        : and3_gate
-        , "size"        : 4
-        , "input_bits"  : 3
-        , "output_bits" : 1
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 8
-        , "h_calls_ev"  : 4
-        , "helper_bits" : 0
-        }
-
-    d['adder'] = \
-        { "gate"        : adder_gate
-        , "size"        : 2
-        , "input_bits"  : 3
-        , "output_bits" : 2
-        , "h_arity"     : 1
-        , "h_calls_gb"  : 4
-        , "h_calls_ev"  : 2
-        , "helper_bits" : 0
-        }
-    return generate_gb(d[x])
 # }}}
 ################################################################################
 ## gates# {{{
@@ -184,6 +62,129 @@ def and3_helper_gate(i, j, z_gb):
     [a0,a1,a2] = bits(i^j, 3)
     return (a0 & a1) ^ z_gb
 
+# }}}
+################################################################################
+## shortcuts# {{{
+
+shortcuts = {}
+shortcuts['free-xor'] = \
+    { "gate"        : xor_gate
+    , "size"        : 0
+    , "input_bits"  : 2
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 0
+    , "h_calls_ev"  : 0
+    }
+
+shortcuts['nested-xor'] = \
+    { "gate"        : nested_xor_gate
+    , "size"        : 0
+    , "input_bits"  : 3
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 0
+    , "h_calls_ev"  : 0
+    , "helper_bits" : 1
+    }
+
+shortcuts['and-xor'] = \
+    { "gate"        : andxor_gate
+    , "size"        : 2
+    , "input_bits"  : 3
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 4
+    , "h_calls_ev"  : 2
+    }
+
+shortcuts['cheaper-and'] = \
+    { "gate"        : and_gate
+    , "size"        : 3
+    , "input_bits"  : 2
+    , "output_bits" : 1
+    , "h_arity"     : 2
+    , "h_calls_gb"  : 4
+    , "h_calls_ev"  : 1
+    }
+
+shortcuts['half-gate'] = \
+    { "gate"        : and_gate
+    , "size"        : 2
+    , "input_bits"  : 2
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 4
+    , "h_calls_ev"  : 2
+    , "adaptive"    : 0
+    }
+
+shortcuts['half-gate-cheaper'] = \
+    { "gate"        : and_gate
+    , "size"        : 2
+    , "input_bits"  : 2
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 4
+    , "h_calls_ev"  : 1
+    }
+
+shortcuts['one-third-gate'] = \
+    { "gate"        : and_gate
+    , "size"        : 2
+    , "input_bits"  : 2
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 4
+    , "h_calls_ev"  : 2
+    , "helper_bits" : 1
+    }
+
+shortcuts['and3'] = \
+    { "gate"        : and3_gate
+    , "size"        : 4
+    , "input_bits"  : 3
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 8
+    , "h_calls_ev"  : 4
+    , "helper_bits" : 1
+    , "helper_gate" : and3_helper_gate
+    }
+
+shortcuts['and3-smaller'] = \
+    { "gate"        : and3_gate
+    , "size"        : 3
+    , "input_bits"  : 3
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 8
+    , "h_calls_ev"  : 4
+    , "helper_bits" : 1
+    , "helper_gate" : and3_helper_gate
+    }
+
+shortcuts['and3-nohelper'] = \
+    { "gate"        : and3_gate
+    , "size"        : 4
+    , "input_bits"  : 3
+    , "output_bits" : 1
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 8
+    , "h_calls_ev"  : 4
+    , "helper_bits" : 0
+    }
+
+shortcuts['adder'] = \
+    { "gate"        : adder_gate
+    , "size"        : 2
+    , "input_bits"  : 3
+    , "output_bits" : 2
+    , "h_arity"     : 1
+    , "h_calls_gb"  : 4
+    , "h_calls_ev"  : 2
+    , "helper_bits" : 0
+    }
 # }}}
 ################################################################################
 ## symbolic matrix class# {{{
@@ -365,7 +366,6 @@ def get_view(Gb, params, i, j, z):# {{{
                 v[row][col] = F
     return v.concat_rows( Gb[i][z][:-params['output_bits']] ) # Gb[i] without its output row
 # }}}
-
 def security(Gb, Gb_C, B, params):# {{{
     secure = T
     with tqdm.tqdm(total=2**(2*params['input_bits']+params['helper_bits']), desc="security") as pbar:
@@ -389,7 +389,6 @@ def security_(view, Cs, B, reach, delta):# {{{
     basis_const = Not( right_zeros( B[delta], reach ))
     return And(*[ mat_const, con_const, basis_const ])
 # }}}
-
 def helper_bit_permuted( m ):# {{{
     p = And(m[0][0], m[1][1])
     q = And(m[0][1], m[1][0])
@@ -443,8 +442,7 @@ def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):# {{{
 
     return And(ev_correct, matched_oracles)
 # }}}
-
-def generate_gb(params):# {{{
+def generate_gb(params, check_security=True, check_correct=True, check_inv=True):# {{{
     input_bits  = params['input_bits']
     output_bits = params['output_bits']
     h_arity     = params['h_arity']
@@ -463,7 +461,7 @@ def generate_gb(params):# {{{
         params['helper_bits'] = 0
     helper_bits = params['helper_bits']
     params['output_rows'] = range( size, size + output_bits )
-    print "params =", params
+    # print "params =", params
     ################################################################################
     ## variables
     # a garbling scheme for each i
@@ -512,20 +510,27 @@ def generate_gb(params):# {{{
     ################################################################################
     ## constraints
     # bs_invertable = And(*[ And(*[ b.det() for b in bi ]) for bi in bs ])
-    I = id_matrix( width, width )
     bs_invertable = T
-    with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
-        for i in range(2**input_bits):
-            for j in range(2**input_bits):
-                for z in range(2**helper_bits):
-                    p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
-                    bs_invertable = And(bs_invertable, p)
-                    pbar.update(1)
+    if check_inv:
+        I = id_matrix( width, width )
+        with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
+            for i in range(2**input_bits):
+                for j in range(2**input_bits):
+                    for z in range(2**helper_bits):
+                        p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
+                        bs_invertable = And(bs_invertable, p)
+                        pbar.update(1)
     
-    secure  = security(gb, cs, bs, params)
-    # secure = T
-    (correct, zijs) = correctness(gb, cs, bs, ev, ec, params)
-    # correct = T
+    if check_security:
+        secure = security(gb, cs, bs, params)
+    else: 
+        secure = T
+
+    if check_correct:
+        (correct, zijs) = correctness(gb, cs, bs, ev, ec, params)
+    else:
+        correct = T
+        zijs = {}
 
     ham_gb = T
     if 'hamming_weight_gb' in params:
@@ -549,7 +554,8 @@ def generate_gb(params):# {{{
            , 'zijs'    : zijs
            }
 # }}}
-
+################################################################################
+## solver
 def check(scheme, solver='z3'):# {{{
     print "checking formula with {}...".format(solver)
     s = Solver(name=solver)
@@ -571,17 +577,19 @@ def reverse_mapping( scheme, model ):# {{{
     scheme_['ec'] = []
     scheme_['bs'] = []
     scheme_['zijs'] = {}
+
+    # find out values of zijs
+    if scheme['params']['helper_bits']:
+        for k in scheme['zijs']:
+            v = scheme['zijs'][k]
+            scheme_['zijs'][k] = 1 if model.get_value(v).is_true() else 0
+
     for i in range(2**scheme['params']['input_bits']):
         scheme_['bs'].append([])
         for j in range(2**scheme['params']['input_bits']):
             scheme_['bs'][i].append([])
             for z in range(2**scheme['params']['helper_bits']):
                 scheme_['bs'][i][j].append( scheme['bs'][i][j][z].reverse_mapping(model) )
-
-            # # find out values of zijs
-            # if scheme['params']['helper_bits']:
-                # for k,v in scheme['zijs']:
-                    # scheme_['zijs'][k] = 1 if model.get_value(v).is_true() else 0
 
         scheme_['gb'].append([])
         scheme_['ev'].append([])
@@ -608,11 +616,11 @@ def print_mapping( scheme ):# {{{
                 args.append(names[col])
         return " + ".join(args)
 
-    # # print values of zijs
-    # if scheme['params']['helper_bits']:
-        # for i in range(len(scheme['gb'])):
-            # for j in range(len(scheme['ev'])):
-                # print "i={} j={}".format(i,j), scheme['zijs'][(i,j)]
+    # print values of zijs
+    if scheme['params']['helper_bits']:
+        for i in range(len(scheme['gb'])):
+            for j in range(len(scheme['ev'])):
+                print "i={} j={} z={}".format(i,j, scheme['zijs'][(i,j)])
 
     # print the scheme
     for i in range(len(scheme['gb'])):
@@ -667,14 +675,104 @@ def print_model( scheme, model ):# {{{
     print_mapping(s)
 # }}}
 
-if __name__ == "__main__":
-    x = shortcuts(sys.argv[1])
-    if len(sys.argv) >= 3:
-        solver = sys.argv[2]
+################################################################################
+## command line interface
+def get_args():# {{{
+    parser = argparse.ArgumentParser()
+    parser.add_argument('shortcut', nargs='?', help='which shortcut to use')
+    parser.add_argument('--list', action='store_true', help='list shortcuts and parameters')
+    parser.add_argument('--shortlist', action='store_true', help='list shortcut names only')
+    parser.add_argument('-C', '--nocorrect', action='store_true', help='skip correctness check')
+    parser.add_argument('-S', '--nosecure', action='store_true', help='skip security check')
+    parser.add_argument('-I', '--noinv', action='store_true', help='skip invertibility check')
+    parser.add_argument('-s', '--solver', default='z3', help='which solver to use')
+    parser.add_argument('--nocheck', action='store_true', help='skip checking altoether')
+    parser.add_argument('-i', '--info', action='store_true', help='show formula info')
+    parser.add_argument('-c', '--csv', action='store_true', help='show formula info as csv')
+    parser.add_argument('-v', '--verbose', action='store_true', help='show timing information')
+    args = parser.parse_args()
+    return args
+# }}}
+def print_shortcuts(namesonly=False):# {{{
+    names = shortcuts.keys()
+    names.sort()
+    for name in names:
+        print name
+        if not namesonly:
+            for param,val in shortcuts[name].iteritems():
+                print "\t{}: {}".format(param, val)
+            print
+# }}}
+def print_info(name, scheme, extra_info=False, csv=False):# {{{
+    params = scheme['params']
+
+    if extra_info or csv:
+        free_vars    = len(scheme['formula'].get_free_variables())
+        formula_size = scheme['formula'].size()
+
+    size        = params['size']
+    input_bits  = params['input_bits']
+    output_bits = params['output_bits']
+    helper_bits = params['helper_bits']
+    h_arity     = params['h_arity']
+    h_calls_gb  = params['h_calls_gb']
+    h_calls_ev  = params['h_calls_ev']
+    adaptive    = params['adaptive']
+
+    if csv:
+        print "name, size, input_bits, output_bits, helper_bits, h_arity, " +\
+            "h_calls_gb, h_calls_ev, adaptive, free_vars, formula_size"
+        print "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}".format(
+                name, size, input_bits, output_bits, helper_bits,
+                h_arity, h_calls_gb, h_calls_ev, adaptive,
+                free_vars, formula_size)
     else:
-        solver = 'z3'
-    m = check(x, solver)
-    if m:
-        print_model(x,m)
-    else:
-        print "unsat"
+        print name
+        print "\tsize         : {}".format(size)
+        print "\tinput_bits   : {}".format(input_bits)
+        print "\toutput_bits  : {}".format(output_bits)
+        print "\thelper_bits  : {}".format(helper_bits)
+        print "\th_arity      : {}".format(h_arity)
+        print "\th_calls_gb   : {}".format(h_calls_gb)
+        print "\th_calls_ev   : {}".format(h_calls_ev)
+        print "\tadaptive     : {}".format(adaptive)
+        if extra_info:
+            print "\tfree_vars    : {}".format(free_vars)
+            print "\tformula_size : {}".format(formula_size)
+# }}}
+if __name__ == "__main__":# {{{
+    args = get_args()
+    if args.verbose:
+        start = time.time()
+    if args.shortlist:
+        print_shortcuts(True)
+        sys.exit()
+    if args.list:
+        print_shortcuts()
+        sys.exit()
+    if not args.shortcut:
+        print "error: no shortcut provided"
+        sys.exit()
+    scheme = generate_gb( shortcuts[args.shortcut]
+                        , check_security = not args.nocorrect
+                        , check_correct  = not args.nosecure
+                        , check_inv      = not args.noinv
+                        )
+    if args.verbose:
+        print "formula generation took {0:.2f}s".format(time.time() - start)
+    print_info(args.shortcut, scheme, extra_info=args.info)
+    if args.csv:
+        print_info(args.shortcut, scheme, extra_info=True, csv=True)
+    if args.verbose:
+        smt_start = time.time()
+    if not args.nocheck:
+        m = check(scheme, args.solver)
+        if m:
+            print_model(scheme, m)
+        else:
+            print "unsat"
+        if args.verbose:
+            end = time.time()
+            print "smt took {0:.2f}s".format(end - smt_start)
+            print "total time was {0:.2f}s".format(end - start)
+# }}}
