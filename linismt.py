@@ -688,7 +688,8 @@ def get_args():# {{{
     parser.add_argument('-s', '--solver', default='z3', help='which solver to use')
     parser.add_argument('--nocheck', action='store_true', help='skip checking altoether')
     parser.add_argument('-i', '--info', action='store_true', help='show formula info')
-    parser.add_argument('-c', '--csv', action='store_true', help='show formula info as csv')
+    parser.add_argument('--csv', action='store_true', help='show formula info as csv')
+    parser.add_argument('--csvheader', action='store_true', help='show csv column names')
     parser.add_argument('-v', '--verbose', action='store_true', help='show timing information')
     args = parser.parse_args()
     return args
@@ -702,6 +703,10 @@ def print_shortcuts(namesonly=False):# {{{
             for param,val in shortcuts[name].iteritems():
                 print "\t{}: {}".format(param, val)
             print
+# }}}
+def print_column_names():# {{{
+    print "name, size, input_bits, output_bits, helper_bits, h_arity, " +\
+          "h_calls_gb, h_calls_ev, adaptive, free_vars, formula_size"
 # }}}
 def print_info(name, scheme, extra_info=False, csv=False):# {{{
     params = scheme['params']
@@ -720,8 +725,6 @@ def print_info(name, scheme, extra_info=False, csv=False):# {{{
     adaptive    = params['adaptive']
 
     if csv:
-        print "name, size, input_bits, output_bits, helper_bits, h_arity, " +\
-            "h_calls_gb, h_calls_ev, adaptive, free_vars, formula_size"
         print "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}".format(
                 name, size, input_bits, output_bits, helper_bits,
                 h_arity, h_calls_gb, h_calls_ev, adaptive,
@@ -747,6 +750,9 @@ if __name__ == "__main__":# {{{
     if args.shortlist:
         print_shortcuts(True)
         sys.exit()
+    if args.csvheader:
+        print_column_names()
+        sys.exit()
     if args.list:
         print_shortcuts()
         sys.exit()
@@ -760,9 +766,10 @@ if __name__ == "__main__":# {{{
                         )
     if args.verbose:
         print "formula generation took {0:.2f}s".format(time.time() - start)
-    print_info(args.shortcut, scheme, extra_info=args.info)
     if args.csv:
         print_info(args.shortcut, scheme, extra_info=True, csv=True)
+    else:
+        print_info(args.shortcut, scheme, extra_info=args.info)
     if args.verbose:
         smt_start = time.time()
     if not args.nocheck:
