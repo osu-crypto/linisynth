@@ -662,13 +662,9 @@ def check_scheme(scheme, solver='z3'):# {{{
 # }}}
 def get_assignment_func(scheme):# {{{
     variables = scheme['formula'].get_free_variables()
-    varnames = map(str, variables)
-    varnames.sort()
     def assignment_func(model):
         ret  = [ Not(Xor(x, model.get_value(x))) for x in variables ]
-        assn = { str(x): model.get_value(x) for x in variables }
-        assn = int("".join([ "1" if assn[x].is_true() else "0" for x in varnames ]), 2)
-        return (And(*ret), assn)
+        return And(*ret)
     return assignment_func
 # }}}
 def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
@@ -682,7 +678,6 @@ def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
     if not ok:
         print "unsat"
         sys.exit(1)
-    seen_assns = set()
     while ok:
         if verbose:
             print "smt took {0:.2f}s".format(time.time() - start)
@@ -691,11 +686,7 @@ def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
         i += 1
         m = s.get_model()
         print_model(scheme,m)
-        (p,assn) = assignment(m)
-        if assn in seen_assns:
-            print "shit! repeated assignment!"
-            sys.exit(1)
-        seen_assns.add(assn)
+        p = assignment(m)
         s.add_assertion(Not(p))
         ok = s.solve()
     if verbose:
