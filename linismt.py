@@ -12,7 +12,129 @@ import argparse
 import time
 
 ################################################################################
-## helper functions and constants# {{{
+# shortcuts {{{
+def shortcuts():
+    d = {}
+    d['free-xor'] = \
+        { "gate"        : xor_gate
+        , "size"        : 0
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 0
+        , "h_calls_ev"  : 0
+        }
+
+    d['nested-xor'] = \
+        { "gate"        : nested_xor_gate
+        , "size"        : 0
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 0
+        , "h_calls_ev"  : 0
+        , "helper_bits" : 1
+        }
+
+    d['and-xor'] = \
+        { "gate"        : andxor_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        }
+
+    d['cheaper-and'] = \
+        { "gate"        : and_gate
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 2
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
+        }
+
+    d['half-gate'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "adaptive"    : 0
+        }
+
+    d['half-gate-cheaper'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
+        }
+
+    d['one-third-gate'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 1
+        }
+
+    d['and3'] = \
+        { "gate"        : and3_gate
+        , "size"        : 4
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 1
+        , "helper_gate" : and3_helper_gate
+        }
+
+    d['and3-smaller'] = \
+        { "gate"        : and3_gate
+        , "size"        : 3
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 1
+        , "helper_gate" : and3_helper_gate
+        }
+
+    d['and3-nohelper'] = \
+        { "gate"        : and3_gate
+        , "size"        : 4
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 0
+        }
+
+    d['adder'] = \
+        { "gate"        : adder_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+# }}}
+# helper functions and constants# {{{
 
 T = TRUE()
 F = FALSE()
@@ -26,8 +148,7 @@ def mapsome(f, stuff):
 def bits(x, size):
     return [ (x&(2**i)>0) for i in range(size) ]
 # }}}
-################################################################################
-## gates# {{{
+# gates {{{
 
 def and_gate(i, j):
     bs = bits(i^j, 2)
@@ -55,139 +176,14 @@ def adder_gate(i,j):
     cout = (x & y) | (z & cin)
     return [z, cout]
 # }}}
-################################################################################
-## helper gates# {{{
+# helper gates {{{
 
 def and3_helper_gate(i, j, z_gb):
     [a0,a1,a2] = bits(i^j, 3)
     return (a0 & a1) ^ z_gb
 
 # }}}
-################################################################################
-## shortcuts# {{{
-
-shortcuts = {}
-shortcuts['free-xor'] = \
-    { "gate"        : xor_gate
-    , "size"        : 0
-    , "input_bits"  : 2
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 0
-    , "h_calls_ev"  : 0
-    }
-
-shortcuts['nested-xor'] = \
-    { "gate"        : nested_xor_gate
-    , "size"        : 0
-    , "input_bits"  : 3
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 0
-    , "h_calls_ev"  : 0
-    , "helper_bits" : 1
-    }
-
-shortcuts['and-xor'] = \
-    { "gate"        : andxor_gate
-    , "size"        : 2
-    , "input_bits"  : 3
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 4
-    , "h_calls_ev"  : 2
-    }
-
-shortcuts['cheaper-and'] = \
-    { "gate"        : and_gate
-    , "size"        : 3
-    , "input_bits"  : 2
-    , "output_bits" : 1
-    , "h_arity"     : 2
-    , "h_calls_gb"  : 4
-    , "h_calls_ev"  : 1
-    }
-
-shortcuts['half-gate'] = \
-    { "gate"        : and_gate
-    , "size"        : 2
-    , "input_bits"  : 2
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 4
-    , "h_calls_ev"  : 2
-    , "adaptive"    : 0
-    }
-
-shortcuts['half-gate-cheaper'] = \
-    { "gate"        : and_gate
-    , "size"        : 2
-    , "input_bits"  : 2
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 4
-    , "h_calls_ev"  : 1
-    }
-
-shortcuts['one-third-gate'] = \
-    { "gate"        : and_gate
-    , "size"        : 2
-    , "input_bits"  : 2
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 4
-    , "h_calls_ev"  : 2
-    , "helper_bits" : 1
-    }
-
-shortcuts['and3'] = \
-    { "gate"        : and3_gate
-    , "size"        : 4
-    , "input_bits"  : 3
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 8
-    , "h_calls_ev"  : 4
-    , "helper_bits" : 1
-    , "helper_gate" : and3_helper_gate
-    }
-
-shortcuts['and3-smaller'] = \
-    { "gate"        : and3_gate
-    , "size"        : 3
-    , "input_bits"  : 3
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 8
-    , "h_calls_ev"  : 4
-    , "helper_bits" : 1
-    , "helper_gate" : and3_helper_gate
-    }
-
-shortcuts['and3-nohelper'] = \
-    { "gate"        : and3_gate
-    , "size"        : 4
-    , "input_bits"  : 3
-    , "output_bits" : 1
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 8
-    , "h_calls_ev"  : 4
-    , "helper_bits" : 0
-    }
-
-shortcuts['adder'] = \
-    { "gate"        : adder_gate
-    , "size"        : 2
-    , "input_bits"  : 3
-    , "output_bits" : 2
-    , "h_arity"     : 1
-    , "h_calls_gb"  : 4
-    , "h_calls_ev"  : 2
-    , "helper_bits" : 0
-    }
-# }}}
-################################################################################
-## symbolic matrix class# {{{
+# symbolic matrix class {{{
 
 class smatrix (list):
     def __init__(self, nrows, ncols, premapping={}, initialize=True):
@@ -305,8 +301,7 @@ def right_zeros(v, num_nonzero):
     return Not(Or(*v[num_nonzero:]))
 
 # }}}
-################################################################################
-## oracle constraint class# {{{
+# oracle constraint class {{{
 
 class constraint:
     def __init__(self, lhs, rhs):
@@ -695,12 +690,12 @@ def get_args():# {{{
     return args
 # }}}
 def print_shortcuts(namesonly=False):# {{{
-    names = shortcuts.keys()
+    names = shortcuts().keys()
     names.sort()
     for name in names:
         print name
         if not namesonly:
-            for param,val in shortcuts[name].iteritems():
+            for param,val in shortcuts()[name].iteritems():
                 print "\t{}: {}".format(param, val)
             print
 # }}}
@@ -749,17 +744,17 @@ if __name__ == "__main__":# {{{
         start = time.time()
     if args.shortlist:
         print_shortcuts(True)
-        sys.exit()
+        sys.exit(0)
     if args.csvheader:
         print_column_names()
-        sys.exit()
+        sys.exit(0)
     if args.list:
         print_shortcuts()
-        sys.exit()
+        sys.exit(0)
     if not args.shortcut:
         print "error: no shortcut provided"
-        sys.exit()
-    scheme = generate_gb( shortcuts[args.shortcut]
+        sys.exit(0)
+    scheme = generate_gb( shortcuts()[args.shortcut]
                         , check_security = not args.nocorrect
                         , check_correct  = not args.nosecure
                         , check_inv      = not args.noinv
@@ -772,14 +767,18 @@ if __name__ == "__main__":# {{{
         print_info(args.shortcut, scheme, extra_info=args.info)
     if args.verbose:
         smt_start = time.time()
-    if not args.nocheck:
+    if args.nocheck:
+        sys.exit(0)
+    else:
         m = check(scheme, args.solver)
-        if m:
-            print_model(scheme, m)
-        else:
-            print "unsat"
         if args.verbose:
             end = time.time()
             print "smt took {0:.2f}s".format(end - smt_start)
             print "total time was {0:.2f}s".format(end - start)
+        if m:
+            print_model(scheme, m)
+            sys.exit(0)
+        else:
+            print "unsat"
+            sys.exit(1)
 # }}}
