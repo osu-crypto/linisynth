@@ -133,6 +133,7 @@ def shortcuts():
         , "h_calls_ev"  : 2
         , "helper_bits" : 0
         }
+    return d
 # }}}
 # helper functions and constants# {{{
 
