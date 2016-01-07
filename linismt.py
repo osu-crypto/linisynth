@@ -15,6 +15,62 @@ import time
 # shortcuts {{{
 def shortcuts():
     d = {}
+
+    d['leq'] = \
+        { "gate"        : leq_gate
+        , "size"        : 1
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 2
+        , "h_calls_ev"  : 1
+        , "helper_bits" : 0
+        }
+
+    d['leq2'] = \
+        { "gate"        : leq_gate
+        , "size"        : 2
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['eq'] = \
+        { "gate"        : eq_gate
+        , "size"        : 2
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['eq-smaller'] = \
+        { "gate"        : eq_gate
+        , "size"        : 1
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['eq-smaller2'] = \
+        { "gate"        : eq_gate
+        , "size"        : 2
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 3
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['free-xor'] = \
         { "gate"        : xor_gate
         , "size"        : 0
@@ -144,7 +200,7 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
-    d['adder'] = \
+    d['adder-nohelper'] = \
         { "gate"        : adder_gate
         , "size"        : 2
         , "input_bits"  : 3
@@ -153,6 +209,17 @@ def shortcuts():
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 2
         , "helper_bits" : 0
+        }
+
+    d['adder'] = \
+        { "gate"        : adder_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 1
         }
     return d
 # }}}
@@ -171,6 +238,15 @@ def bits(x, size):
     return [ (x&(2**i)>0) for i in range(size) ]
 # }}}
 # gates {{{
+def eq_gate(i,j):
+    x = (i^j) & 0b11
+    y = ((i^j) & 0b1100) >> 2
+    return [x == y]
+
+def leq_gate(i,j):
+    x = (i^j) & 0b11
+    y = ((i^j) & 0b1100) >> 2
+    return [x <= y]
 
 def and_gate(i, j):
     bs = bits(i^j, 2)
