@@ -649,8 +649,7 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
 # }}}
 ################################################################################
 ## solver
-def check(scheme, solver='z3'):# {{{
-    print "checking formula with {}...".format(solver)
+def check_scheme(scheme, solver='z3'):# {{{
     s = Solver(name=solver)
     s.add_assertion(scheme['formula'])
     ok = s.solve()
@@ -660,6 +659,49 @@ def check(scheme, solver='z3'):# {{{
         return m
     else:
         s.exit()
+# }}}
+def get_assignment_func(scheme):# {{{
+    variables = scheme['formula'].get_free_variables()
+    varnames = map(str, variables)
+    varnames.sort()
+    def assignment_func(model):
+        ret  = [ Not(Xor(x, model.get_value(x))) for x in variables ]
+        assn = { str(x): model.get_value(x) for x in variables }
+        assn = int("".join([ "1" if assn[x].is_true() else "0" for x in varnames ]), 2)
+        return (And(*ret), assn)
+    return assignment_func
+# }}}
+def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
+    assignment = get_assignment_func(scheme)
+    i = 0
+    s = Solver(name=solver)
+    if verbose:
+        enumerate_start = start = time.time()
+    s.add_assertion(scheme['formula'])
+    ok = s.solve()
+    if not ok:
+        print "unsat"
+        sys.exit(1)
+    seen_assns = set()
+    while ok:
+        if verbose:
+            print "smt took {0:.2f}s".format(time.time() - start)
+            start = time.time()
+        print "enumerate: {}".format(i)
+        i += 1
+        m = s.get_model()
+        print_model(scheme,m)
+        (p,assn) = assignment(m)
+        if assn in seen_assns:
+            print "shit! repeated assignment!"
+            sys.exit(1)
+        seen_assns.add(assn)
+        s.add_assertion(Not(p))
+        ok = s.solve()
+    if verbose:
+        print "enumeration took {:.2f}s".format(time.time() - enumerate_start)
+    s.exit()
+    sys.exit(0)
 # }}}
 def reverse_mapping( scheme, model ):# {{{
     scheme_ = {}
@@ -784,6 +826,7 @@ def get_args():# {{{
     parser.add_argument('--csv', action='store_true', help='show formula info as csv')
     parser.add_argument('--csvheader', action='store_true', help='show csv column names')
     parser.add_argument('-v', '--verbose', action='store_true', help='show timing information')
+    parser.add_argument('-e', '--enumerate', action='store_true', help='enumerate solutions')
     args = parser.parse_args()
     return args
 # }}}
@@ -858,25 +901,31 @@ if __name__ == "__main__":# {{{
                         , check_inv      = not args.noinv
                         )
     if args.verbose:
+        print_info(args.shortcut, scheme, extra_info=args.info)
         print "formula generation took {0:.2f}s".format(time.time() - start)
     if args.csv:
         print_info(args.shortcut, scheme, extra_info=True, csv=True)
-    else:
-        print_info(args.shortcut, scheme, extra_info=args.info)
     if args.verbose:
         smt_start = time.time()
     if args.nocheck:
         sys.exit(0)
     else:
-        m = check(scheme, args.solver)
-        if args.verbose:
-            end = time.time()
-            print "smt took {0:.2f}s".format(end - smt_start)
-            print "total time was {0:.2f}s".format(end - start)
-        if m:
-            print_model(scheme, m)
-            sys.exit(0)
+        if args.enumerate:
+            if args.verbose:
+                print "enumerating formula with {}...".format(args.solver)
+            enumerate_scheme(scheme, args.solver, args.verbose)
         else:
-            print "unsat"
-            sys.exit(1)
+            if args.verbose:
+                print "checking formula with {}...".format(args.solver)
+            m = check_scheme(scheme, args.solver)
+            if args.verbose:
+                end = time.time()
+                print "smt took {0:.2f}s".format(end - smt_start)
+                print "total time was {0:.2f}s".format(end - start)
+            if m:
+                print_model(scheme, m)
+                sys.exit(0)
+            else:
+                print "unsat"
+                sys.exit(1)
 # }}}
