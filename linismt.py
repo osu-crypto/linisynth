@@ -33,7 +33,7 @@ def shortcuts():
         , "h_arity"     : 1
         , "h_calls_gb"  : 0
         , "h_calls_ev"  : 0
-        , "helper_bits" : 1
+        , "helper_bits" : 0
         }
 
     d['and-xor'] = \
@@ -49,6 +49,16 @@ def shortcuts():
     d['cheaper-and'] = \
         { "gate"        : and_gate
         , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 2
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
+        }
+
+    d['cheaper-and2'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
         , "input_bits"  : 2
         , "output_bits" : 1
         , "h_arity"     : 2
