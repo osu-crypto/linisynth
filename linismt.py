@@ -89,6 +89,17 @@ def shortcuts():
 
     d['one-third-gate'] = \
         { "gate"        : and_gate
+        , "size"        : 1
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 1
+        }
+
+    d['one-third-gate-big'] = \
+        { "gate"        : and_gate
         , "size"        : 2
         , "input_bits"  : 2
         , "output_bits" : 1
