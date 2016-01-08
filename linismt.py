@@ -262,7 +262,7 @@ def bits(x, size):
 # gates {{{
 def mux_gate(i,j):
     [x0, x1, c] = bits(i^j, 3)
-    return x1 if c else x0
+    return [x1 if c else x0]
 
 def eq_gate(i,j):
     x = (i^j) & 0b11
