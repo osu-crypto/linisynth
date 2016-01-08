@@ -27,6 +27,18 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['mux2'] = \
+        { "gate"        : mux_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        , "adaptive"    : 0
+        }
+
     d['leq'] = \
         { "gate"        : leq_gate
         , "size"        : 1
