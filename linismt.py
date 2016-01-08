@@ -728,6 +728,7 @@ def get_assignment_func(scheme):# {{{
 # }}}
 def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
     assignment = get_assignment_func(scheme)
+    seen = {}
     i = 0
     s = Solver(name=solver)
     if verbose:
@@ -744,7 +745,14 @@ def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
         print "enumerate: {}".format(i)
         i += 1
         m = s.get_model()
-        print_model(scheme,m)
+        mapping = reverse_mapping(scheme, m)
+        mapping_str = mapping_to_str(mapping)
+        if mapping_str in seen:
+            print mapping
+            print seen[mapping_str]
+            sys.exit(1)
+        else:
+            seen[mapping_str] = mapping
         p = assignment(m)
         s.add_assertion(Not(p))
         ok = s.solve()
@@ -792,7 +800,8 @@ def reverse_mapping( scheme, model ):# {{{
                 scheme_['ec'][i][z].append( c.reverse_mapping(model) )
     return scheme_
 # }}}
-def print_mapping( scheme ):# {{{
+def mapping_to_str( scheme ):# {{{
+    s = ""
     params = scheme['params']
     def args_str(row, names):
         args = []
@@ -805,13 +814,12 @@ def print_mapping( scheme ):# {{{
     if scheme['params']['helper_bits']:
         for i in range(len(scheme['gb'])):
             for j in range(len(scheme['ev'])):
-                print "i={} j={} z={}".format(i,j, scheme['zijs'][(i,j)])
+                s += "i={} j={} z={}\n".format(i,j, scheme['zijs'][(i,j)])
 
-    # print the scheme
     for i in range(len(scheme['gb'])):
         for z in range(len(scheme['gb'][i])):
-            print "---i={},z={}---".format(i,z)
-            print "Gb:"
+            s += "---i={},z={}---\n".format(i,z)
+            s += "Gb:\n"
             gb = scheme['gb'][i][z]
             cs = scheme['cs'][i][z]
             gb_names = []
@@ -830,11 +838,11 @@ def print_mapping( scheme ):# {{{
                     name = 'F' + str(row)
                 else:
                     name = 'C' + str(row - params['size'])
-                print "\t{} = {}".format( name, args_str(gb[row], gb_names) )
+                s += "\t{} = {}\n".format( name, args_str(gb[row], gb_names) )
     for j in range(len(scheme['ev'])):
         for z in range(len(scheme['ev'][j])):
-            print "---j={},z={}---".format(j,z)
-            print "Ev:"
+            s += "---j={},z={}---\n".format(j,z)
+            s += "Ev:\n"
             ev = scheme['ev'][j][z]
             ec = scheme['ec'][j][z]
             ev_names = []
@@ -853,11 +861,12 @@ def print_mapping( scheme ):# {{{
                 ev_names.append(var)
             for row in range(len(ev)):
                 name = 'C' + str(row)
-                print "\t{} = {}".format( name, args_str(ev[row], ev_names) )
+                s += "\t{} = {}\n".format( name, args_str(ev[row], ev_names) )
+    return s
 # }}}
 def print_model( scheme, model ):# {{{
     s = reverse_mapping(scheme, model)
-    print_mapping(s)
+    print mapping_to_str(s),
 # }}}
 
 ################################################################################
