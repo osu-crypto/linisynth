@@ -16,6 +16,28 @@ import time
 def shortcuts():
     d = {}
 
+    d['mux'] = \
+        { "gate"        : mux_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['mux2'] = \
+        { "gate"        : mux_gate
+        , "size"        : 2
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['leq'] = \
         { "gate"        : leq_gate
         , "size"        : 1
@@ -238,6 +260,10 @@ def bits(x, size):
     return [ (x&(2**i)>0) for i in range(size) ]
 # }}}
 # gates {{{
+def mux_gate(i,j):
+    [x0, x1, c] = bits(i^j, 3)
+    return x1 if c else x0
+
 def eq_gate(i,j):
     x = (i^j) & 0b11
     y = ((i^j) & 0b1100) >> 2
