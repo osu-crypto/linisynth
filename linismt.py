@@ -728,7 +728,6 @@ def get_assignment_func(scheme):# {{{
 # }}}
 def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
     assignment = get_assignment_func(scheme)
-    seen = {}
     i = 0
     s = Solver(name=solver)
     if verbose:
@@ -745,14 +744,7 @@ def enumerate_scheme(scheme, solver='z3', verbose=False):# {{{
         print "enumerate: {}".format(i)
         i += 1
         m = s.get_model()
-        mapping = reverse_mapping(scheme, m)
-        mapping_str = mapping_to_str(mapping)
-        if mapping_str in seen:
-            print mapping
-            print seen[mapping_str]
-            sys.exit(1)
-        else:
-            seen[mapping_str] = mapping
+        print_model(scheme, m)
         p = assignment(m)
         s.add_assertion(Not(p))
         ok = s.solve()
