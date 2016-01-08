@@ -35,7 +35,7 @@ def shortcuts():
         , "h_arity"     : 1
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 2
-        , "helper_bits" : 0
+        , "helper_bits" : 1
         }
 
     d['leq'] = \
