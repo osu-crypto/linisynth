@@ -10,6 +10,7 @@ import tqdm
 import sys
 import argparse
 import time
+import pprint
 
 ################################################################################
 # shortcuts {{{
@@ -416,7 +417,7 @@ def id_matrix(nrows, ncols):
 def vec_leq(v,w):
     assert(len(v) == len(w))
     if len(v) == 1: return And(Not(v[0]), w[0])
-    return Or(And(Not(v[0]), w[0]), And(Not(Xor(v[0], w[0])), vec_leq(v[1:], w[1:])))
+    return Or(And(Not(v[-1]), w[-1]), And(Not(Xor(v[-1], w[-1])), vec_leq(v[:-1], w[:-1])))
 
 def vec_eq(v, w):
     vp = copy.copy(v)
@@ -485,10 +486,11 @@ def generate_constraints(n_constraints, arity, previous_fresh, adaptive=True):# 
         cs.append( constraint( lhs, rhs ))
     # ensure lexocographic ordering
     lex = T
-    if arity == 1:
-        for i in range(n_constraints - 1):
-            p = vec_leq(cs[i].lhs[0], cs[i+1].lhs[0])
-            lex = And(lex,p)
+    for i in range(n_constraints - 1):
+        v = sum(cs[i].lhs, [])
+        w = sum(cs[i+1].lhs, [])
+        p = vec_leq(v,w)
+        lex = And(lex,p)
     return (cs, lex)
 # }}}
 def get_view(Gb, params, i, j, z):# {{{
@@ -808,6 +810,44 @@ def mapping_to_str( scheme ):# {{{
             for j in range(len(scheme['ev'])):
                 s += "i={} j={} z={}\n".format(i,j, scheme['zijs'][(i,j)])
 
+    pp = pprint.PrettyPrinter()
+    gb_names = {}
+    for i in range(len(scheme['gb'])):
+        for z in range(len(scheme['gb'][i])):
+            gb_names[(i,z)] = []
+            gb = scheme['gb'][i][z]
+            cs = scheme['cs'][i][z]
+            cur_inp = 'A'
+            for row in range(params['input_bits']):
+                gb_names[(i,z)].append(cur_inp)
+                cur_inp = chr(ord(cur_inp)+1)
+            gb_names[(i,z)].append('delta')
+            cur_inp = 0
+            for row in range(params['h_calls_gb']):
+                args = map(lambda a: args_str(a, gb_names[(i,z)]), cs[row].lhs)
+                var = "H({})".format(", ".join(args))
+                gb_names[(i,z)].append(var)
+
+    pp.pprint( gb_names )
+
+    nonlinear = []
+    for row in range(params['size'] + 1):
+        args = {} # { name: [(i,z)] }
+        for fresh in range(params['width']):
+            for i in range(2**params['input_bits']):
+                for z in range(2**params['helper_bits']):
+                    gb = scheme['gb'][i][z]
+                    if gb[row][fresh]:
+                        name = gb_names[(i,z)][fresh]
+                        if not name in args:
+                            args[name] = []
+                        args[name].append((i,z))
+        nonlinear.append(args)
+
+    pp.pprint(nonlinear)
+
+    ################################################################################
+
     for i in range(len(scheme['gb'])):
         for z in range(len(scheme['gb'][i])):
             s += "---i={},z={}---\n".format(i,z)
@@ -831,6 +871,7 @@ def mapping_to_str( scheme ):# {{{
                 else:
                     name = 'C' + str(row - params['size'])
                 s += "\t{} = {}\n".format( name, args_str(gb[row], gb_names) )
+
     for j in range(len(scheme['ev'])):
         for z in range(len(scheme['ev'][j])):
             s += "---j={},z={}---\n".format(j,z)
@@ -873,10 +914,9 @@ def get_args():# {{{
     parser.add_argument('-I', '--noinv', action='store_true', help='skip invertibility check')
     parser.add_argument('-s', '--solver', default='z3', help='which solver to use')
     parser.add_argument('--nocheck', action='store_true', help='skip checking altoether')
-    parser.add_argument('-i', '--info', action='store_true', help='show formula info')
     parser.add_argument('--csv', action='store_true', help='show formula info as csv')
     parser.add_argument('--csvheader', action='store_true', help='show csv column names')
-    parser.add_argument('-v', '--verbose', action='store_true', help='show timing information')
+    parser.add_argument('-v', '--verbose', action='count', help='show timing information')
     parser.add_argument('-e', '--enumerate', action='store_true', help='enumerate solutions')
     args = parser.parse_args()
     return args
@@ -952,12 +992,13 @@ if __name__ == "__main__":# {{{
                         , check_inv      = not args.noinv
                         )
     if args.verbose:
-        print_info(args.shortcut, scheme, extra_info=args.info)
+        if args.verbose > 2:
+            print scheme['params']
+        print_info(args.shortcut, scheme, extra_info=args.verbose > 1)
         print "formula generation took {0:.2f}s".format(time.time() - start)
+        smt_start = time.time()
     if args.csv:
         print_info(args.shortcut, scheme, extra_info=True, csv=True)
-    if args.verbose:
-        smt_start = time.time()
     if args.nocheck:
         sys.exit(0)
     else:
