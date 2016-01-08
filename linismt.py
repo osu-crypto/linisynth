@@ -362,7 +362,8 @@ class smatrix (list):
 
     def get_variables(self):
         return sum(self, [])
-
+# }}}
+# vector ops {{{
 def hamming_weight_leq(vec, n):
     ints = [ FreshSymbol(INT) for x in vec ]
     p = T
@@ -384,6 +385,11 @@ def id_matrix(nrows, ncols):
             else:
                 I[row][col] = F
     return I
+
+def vec_leq(v,w):
+    assert(len(v) == len(w))
+    if len(v) == 1: return And(Not(v[0]), w[0])
+    return Or(And(Not(v[0]), w[0]), And(Not(Xor(v[0], w[0])), vec_leq(v[1:], w[1:])))
 
 def vec_eq(v, w):
     vp = copy.copy(v)
@@ -450,7 +456,13 @@ def generate_constraints(n_constraints, arity, previous_fresh, adaptive=True):# 
             else:
                 rhs[0][k] = F
         cs.append( constraint( lhs, rhs ))
-    return cs
+    # ensure lexocographic ordering
+    lex = T
+    if arity == 1:
+        for i in range(n_constraints - 1):
+            p = vec_leq(cs[i].lhs[0], cs[i+1].lhs[0])
+            lex = And(lex,p)
+    return (cs, lex)
 # }}}
 def get_view(Gb, params, i, j, z):# {{{
     width  = Gb[0][0].ncols
@@ -566,13 +578,15 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     # a garbling scheme for each i
     gb = []
     cs = []
+    lex_gb = T
     with tqdm.tqdm(total=2**(input_bits+helper_bits), desc="gb") as pbar:
         for i in range(2**input_bits):
             gb.append([])
             cs.append([])
             for z in range(2**helper_bits):
                 g = smatrix( size + output_bits, width )
-                c = generate_constraints( h_calls_gb, h_arity, input_bits+1, adaptive)
+                (c,lex) = generate_constraints( h_calls_gb, h_arity, input_bits+1, adaptive)
+                lex_gb = And(lex_gb, lex)
                 gb[i].append(g)
                 cs[i].append(c)
                 pbar.update(1)
@@ -596,13 +610,15 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     # an evaluation scheme for each j
     ev = []
     ec = []
+    lex_ev = T
     with tqdm.tqdm(total=2**(input_bits+helper_bits), desc="ev") as pbar:
         for j in range(2**input_bits):
             ev.append([])
             ec.append([])
             for z in range(2**helper_bits):
                 e = smatrix( output_bits, ev_width )
-                c = generate_constraints( h_calls_ev, h_arity, size + input_bits )
+                (c, lex) = generate_constraints( h_calls_ev, h_arity, size + input_bits )
+                lex_ev = And(lex_ev, lex)
                 ev[j].append(e)
                 ec[j].append(c)
                 pbar.update(1)
@@ -641,9 +657,10 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
         print "max hamming weight (ev):", params['hamming_weight_ev']
         ham_ev = mapall(lambda outer: \
             mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer), ev)
+    lex = And(lex_gb, lex_ev)
     ################################################################################
     ## the formula
-    return { 'formula' : And(*[ bs_invertable, secure, correct, ham_gb, ham_ev ])
+    return { 'formula' : And(*[ bs_invertable, secure, correct, ham_gb, ham_ev, lex ])
            , 'params'  : params
            , 'bs'      : bs
            , 'gb'      : gb
