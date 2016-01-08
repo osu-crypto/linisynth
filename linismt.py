@@ -360,6 +360,9 @@ class smatrix (list):
     def max_hamming_weight(self, n):
         return mapall(lambda row: hamming_weight_leq(row, n), self)
 
+    def get_variables(self):
+        return sum(self, [])
+
 def hamming_weight_leq(vec, n):
     ints = [ FreshSymbol(INT) for x in vec ]
     p = T
@@ -421,6 +424,9 @@ class constraint:
 
     def eq(self, other):
         return And( self.lhs.eq(other.lhs), self.rhs.eq(other.rhs) )
+
+    def get_variables(self):
+        return self.lhs.get_variables() + self.rhs.get_variables()
 # }}}
 ################################################################################
 ## formula generation
@@ -661,9 +667,18 @@ def check_scheme(scheme, solver='z3'):# {{{
         s.exit()
 # }}}
 def get_assignment_func(scheme):# {{{
-    variables = scheme['formula'].get_free_variables()
+    variables = []
+    for i in range(2**scheme['params']['input_bits']):
+        for z in range(2**scheme['params']['helper_bits']):
+            variables.extend(scheme['gb'][i][z].get_variables())
+            variables.extend(scheme['ev'][i][z].get_variables())
+            for c in scheme['cs'][i][z]:
+                variables.extend(c.get_variables())
+            for c in scheme['ec'][i][z]:
+                variables.extend(c.get_variables())
+    variables = filter(lambda x: not x.is_true() and not x.is_false(), variables)
     def assignment_func(model):
-        ret  = [ Not(Xor(x, model.get_value(x))) for x in variables ]
+        ret = [ Not(Xor(x, model.get_value(x))) for x in variables ]
         return And(*ret)
     return assignment_func
 # }}}
