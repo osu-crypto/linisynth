@@ -1,0 +1,61 @@
+(max_sketch
+
+  (comment "2 bit lt")
+  (comment "Usage: python Synudic.py max.sketch na=7 nb=3")
+  (comment "type: boolean denoting if input is used")
+
+  (primal dom
+    (decls
+      (define-type dom bool)
+
+      (define fand::(-> dom dom dom) (lambda (x::dom y::dom) (and x y)))
+      (define for::(-> dom dom dom) (lambda (x::dom y::dom) (or x y)))
+      (define fxor::(-> dom dom dom) (lambda (x::dom y::dom) (xor x y)))
+      (define fnot::(-> dom dom) (lambda (x::dom) (not x)))
+
+      (define flt::(-> dom dom dom dom dom) (lambda (x0::dom x1::dom y0::dom y1::dom)
+                                               (bv-lt (bool-to-bv x0 x1) (bool-to-bv y0 y1))))
+    )
+
+    (ensure (= (dom l1 na) (dom spec 1)))
+  )
+
+  (dual typ
+    (decls
+      (define-type typ int)
+      (define fand::(-> typ typ typ bool) (lambda (x::typ y::typ z::typ) (= z (+ x y 1))))
+      (define for::(-> typ typ typ bool) (lambda (x::typ y::typ z::typ) (= z (+ x y 1))))
+      (define fxor::(-> typ typ typ bool) (lambda (x::typ y::typ z::typ) (= z (+ x y))))
+      (define fnot::(-> typ typ bool) (lambda (x::typ y::typ) (= y x)))
+      (define flt::(-> typ typ typ typ typ bool) (lambda (w::typ x::typ y::typ z::typ out::typ) true))
+    )
+    (ensure (<= (typ l1 na) nb))
+  )
+
+  (parameters na nb)
+
+  (library
+    (fand 2)
+    (for 2)
+    (fxor 2)
+    (fnot 1)
+    (flt 4)
+  )
+
+  (blocks
+    (x0 1 ((input ix0::0)))
+    (x1 1 ((input ix1::0)))
+    (y0 1 ((input iy0::0)))
+    (y1 1 ((input ix1::0)))
+    (l1 na (
+            (fand (x0 x1 y0 y1 -) (x0 x1 y0 y1 -))
+            (fxor (x0 x1 y0 y1 -) (x0 x1 y0 y1 -))
+            (for  (x0 x1 y0 y1 -) (x0 x1 y0 y1 -))
+            (fnot (x0 x1 y0 y1 -))
+          ))
+    (spec 1 ((flt (x0) (x1) (y0) (y1))))
+  )
+
+)
+
+
