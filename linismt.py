@@ -95,6 +95,17 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['lt'] = \
+        { "gate"        : lt_gate
+        , "size"        : 2
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 0
+        }
+
     d['free-xor'] = \
         { "gate"        : xor_gate
         , "size"        : 0
@@ -270,6 +281,11 @@ def eq_gate(i,j):
     x = (i^j) & 0b11
     y = ((i^j) & 0b1100) >> 2
     return [x == y]
+
+def lt_gate(i,j):
+    x = (i^j) & 0b11
+    y = ((i^j) & 0b1100) >> 2
+    return [x < y]
 
 def leq_gate(i,j):
     x = (i^j) & 0b11
