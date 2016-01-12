@@ -908,7 +908,7 @@ def mapping_to_pretty_str( scheme ):# {{{
                     cur_inp = chr(ord(cur_inp)+1)
                 if is_ev:
                     # add F0, F1, etc
-                    cur_inp = 1
+                    cur_inp = 0
                     for row in range(params['size']):
                         fresh_names[(i,z)].append('F' + str(cur_inp))
                         cur_inp += 1
@@ -963,7 +963,10 @@ def mapping_to_pretty_str( scheme ):# {{{
             name = 'C' + str(i - params['size'])
         s += "\t{} = ".format(name)
         args = []
-        for argname, izs in row.iteritems():
+        argnames = row.keys()
+        argnames.sort()
+        for argname in argnames:
+            izs = row[argname]
             if izs == all_combinations:
                 args.append(argname)
             else:
@@ -977,7 +980,10 @@ def mapping_to_pretty_str( scheme ):# {{{
         name = 'C' + str(i)
         s += "\t{} = ".format(name)
         args = []
-        for argname, izs in row.iteritems():
+        argnames = row.keys()
+        argnames.sort()
+        for argname in argnames:
+            izs = row[argname]
             if izs == all_combinations:
                 args.append(argname)
             else:
