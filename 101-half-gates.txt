@@ -1,0 +1,822 @@
+half-gate
+	size         : 2
+	input_bits   : 2
+	output_bits  : 1
+	helper_bits  : 0
+	h_arity      : 1
+	h_calls_gb   : 4
+	h_calls_ev   : 2
+	adaptive     : 0
+	free_vars    : 1972
+	formula_size : 118513
+formula generation took 2.56s
+enumerating formula with z3...
+smt took 6.29s
+enumerate: 0
+Gb:
+	F0 = H(A + B) + H(A + B + delta) + [0,2]delta
+	F1 = A + H(A + B) + B + H(A + delta) + [0,2]delta + H(A + B + delta) + H(A)
+	C0 = [1,2]H(A + B) + B + [1,3]H(A + delta) + [0]delta + [0,3]H(A + B + delta) + [0,2]H(A)
+Ev:
+	C0 = [1,3]A + [0,1]F1 + [1,3]F2 + [0,2]B + H(A + B) + H(A)
+smt took 0.59s
+enumerate: 1
+Gb:
+	F0 = H(A + delta) + B + H(A) + delta
+	F1 = H(B) + H(B + delta) + B + [0,3]delta
+	C0 = A + [0,2]H(A + delta) + [0,1]H(B + delta) + [2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = A + [0,2]F1 + [0,1]F2 + [1,2]B + H(B) + H(A)
+smt took 0.23s
+enumerate: 2
+Gb:
+	F0 = H(B + delta) + H(A + delta) + H(B) + H(A) + [1,2]delta
+	F1 = H(B) + H(B + delta) + B + [0,3]delta
+	C0 = A + [0,2]H(A + delta) + [0,1]H(B + delta) + [2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = A + [0,2]F1 + [1,2]F2 + [1,2]B + H(B) + H(A)
+smt took 0.21s
+enumerate: 3
+Gb:
+	F0 = H(B + delta) + H(A + delta) + H(B) + H(A) + [1,2]delta
+	F1 = A + H(B + delta) + H(B)
+	C0 = A + [0,2]H(A + delta) + [0,1]H(B + delta) + [2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = [0,3]A + [0,2]F1 + [1,2]F2 + H(B) + H(A)
+smt took 0.21s
+enumerate: 4
+Gb:
+	F0 = A + H(A + delta) + H(B + delta) + [2,3]delta + H(B) + H(A)
+	F1 = H(B) + H(B + delta) + B + [0,3]delta
+	C0 = A + [0,2]H(A + delta) + [0,1]H(B + delta) + [2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [1,2]F2 + [1,2]B + H(B) + H(A)
+smt took 0.20s
+enumerate: 5
+Gb:
+	F0 = A + H(A + delta) + H(B + delta) + [2,3]delta + H(B) + H(A)
+	F1 = A + H(B + delta) + H(B)
+	C0 = A + [0,2]H(A + delta) + [0,1]H(B + delta) + [2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = [2,3]A + [0,2]F1 + [1,2]F2 + H(B) + H(A)
+smt took 0.20s
+enumerate: 6
+Gb:
+	F0 = H(B + delta) + H(A + delta) + B + [0,2]delta + H(B) + H(A)
+	F1 = H(B + delta) + H(B) + [1,3]delta
+	C0 = A + [0,2]H(A + delta) + B + [0,1]H(B + delta) + [0,1,2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = A + [0,2]F1 + [1,2]F2 + [1,3]B + H(B) + H(A)
+smt took 0.32s
+enumerate: 7
+Gb:
+	F0 = H(B + delta) + H(A + delta) + B + [0,2]delta + H(B) + H(A)
+	F1 = A + H(B + delta) + B + H(B) + [0,1]delta
+	C0 = A + [0,2]H(A + delta) + B + [0,1]H(B + delta) + [0,1,2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = [0,3]A + [0,2]F1 + [1,2]F2 + [2,3]B + H(B) + H(A)
+smt took 0.20s
+enumerate: 8
+Gb:
+	F0 = A + H(A + delta) + B + H(B + delta) + delta + H(B) + H(A)
+	F1 = H(B + delta) + H(B) + [1,3]delta
+	C0 = A + [0,2]H(A + delta) + B + [0,1]H(B + delta) + [0,1,2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [1,2]F2 + [1,3]B + H(B) + H(A)
+smt took 0.20s
+enumerate: 9
+Gb:
+	F0 = A + H(A + delta) + B + H(B + delta) + delta + H(B) + H(A)
+	F1 = A + H(B + delta) + B + H(B) + [0,1]delta
+	C0 = A + [0,2]H(A + delta) + B + [0,1]H(B + delta) + [0,1,2]delta + [2,3]H(B) + [1,3]H(A)
+Ev:
+	C0 = [2,3]A + [0,2]F1 + [1,2]F2 + [2,3]B + H(B) + H(A)
+smt took 0.21s
+enumerate: 10
+Gb:
+	F0 = H(B + delta) + H(A + delta) + B + [0,2]delta + H(B) + H(A)
+	F1 = H(B + delta) + H(B) + [0,2]delta
+	C0 = [0,1]H(B + delta) + [0,2]H(A + delta) + [2,3]H(B) + [1,3]H(A) + [0]delta
+Ev:
+	C0 = H(B) + [0,2]F1 + [1,2]F2 + [0,2]B + H(A)
+smt took 0.22s
+enumerate: 11
+Gb:
+	F0 = H(A + delta) + B + H(A)
+	F1 = H(B + delta) + H(B) + [0,2]delta
+	C0 = [0,1]H(B + delta) + [0,2]H(A + delta) + [2,3]H(B) + [1,3]H(A) + [0]delta
+Ev:
+	C0 = H(B) + [0,2]F1 + [0,1]F2 + [0,2]B + H(A)
+smt took 0.47s
+enumerate: 12
+Gb:
+	F0 = A + H(B + delta) + H(B) + [2,3]delta
+	F1 = H(A + B) + H(A + B + delta) + [2,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,2]F2 + H(B) + [2,3]F1
+smt took 0.30s
+enumerate: 13
+Gb:
+	F0 = A + H(B + delta) + H(B) + [0,1]delta
+	F1 = H(B + delta) + H(A + B) + B + [1,2]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,2]F2 + [0,3]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 14
+Gb:
+	F0 = A + H(B + delta) + H(B) + [2,3]delta
+	F1 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,2]F2 + [1,2]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 15
+Gb:
+	F0 = A + H(B + delta) + H(B) + [2,3]delta
+	F1 = A + H(A + B) + H(A + B + delta) + B + [0,2]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,2]F2 + [1,2]B + [2,3]F1 + H(B)
+smt took 0.22s
+enumerate: 16
+Gb:
+	F0 = A + H(B + delta) + B + H(B) + delta
+	F1 = A + H(A + B) + H(A + B + delta) + B + [0,2]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,2]F2 + [1,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 17
+Gb:
+	F0 = A + H(B + delta) + B + H(B) + delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,2]F2 + [1,3]B + [1,3]F1 + H(B)
+smt took 0.42s
+enumerate: 18
+Gb:
+	F0 = A + H(A + delta) + H(A) + [1,2]delta
+	F1 = A + H(B + delta) + H(B) + delta
+	C0 = A + [1,3]H(A + delta) + B + [2,3]H(B + delta) + [1,2,3]delta + [0,1]H(B) + [0,2]H(A)
+Ev:
+	C0 = [0,3]A + [1,3]F1 + [2,3]F2 + B + H(B) + H(A)
+smt took 0.21s
+enumerate: 19
+Gb:
+	F0 = H(A + delta) + H(A) + [2,3]delta
+	F1 = A + H(B + delta) + H(B) + delta
+	C0 = [2,3]H(B + delta) + [1,3]H(A + delta) + B + [2]delta + [0,1]H(B) + [0,2]H(A)
+Ev:
+	C0 = [2,3]A + [1,3]F1 + [2,3]F2 + B + H(B) + H(A)
+smt took 0.20s
+enumerate: 20
+Gb:
+	F0 = H(A + delta) + H(A) + [2,3]delta
+	F1 = A + H(B + delta) + B + H(B) + [0,1]delta
+	C0 = [2,3]H(B + delta) + [1,3]H(A + delta) + [0,1]H(B) + [0,2]H(A) + [3]delta
+Ev:
+	C0 = [2,3]A + [1,3]F1 + [2,3]F2 + [2,3]B + H(B) + H(A)
+smt took 0.36s
+enumerate: 21
+Gb:
+	F0 = A + H(A + B) + H(A + B + delta) + B + [1,3]delta
+	F1 = A + H(B + delta) + B + H(B)
+	C0 = [2,3]H(B + delta) + [1,2]H(A + B) + B + [3]delta + [0,3]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + [0,3]F1 + [2,3]F2 + [1,3]B + H(A + B) + H(B)
+smt took 0.32s
+enumerate: 22
+Gb:
+	F0 = A + H(B + delta) + H(B)
+	F1 = A + H(A + delta) + H(A) + [0,3]delta
+	C0 = [2,3]H(B + delta) + [1,3]H(A + delta) + [0,1]H(B) + [0,2]H(A) + [3]delta
+Ev:
+	C0 = [1,2]A + [2,3]F1 + [1,3]F2 + H(B) + H(A)
+smt took 0.21s
+enumerate: 23
+Gb:
+	F0 = H(B + delta) + H(B) + [1,3]delta
+	F1 = A + H(A + delta) + B + H(A) + [0,2]delta
+	C0 = [2,3]H(B + delta) + [1,3]H(A + delta) + [0,1]H(B) + [0,2]H(A) + [3]delta
+Ev:
+	C0 = [1,3]A + [2,3]F1 + [1,3]F2 + [1,3]B + H(B) + H(A)
+smt took 0.20s
+enumerate: 24
+Gb:
+	F0 = A + H(A + delta) + B + H(B + delta) + H(B) + H(A)
+	F1 = A + H(A + delta) + B + H(A) + [0,2]delta
+	C0 = [2,3]H(B + delta) + [1,3]H(A + delta) + B + [2]delta + [0,1]H(B) + [0,2]H(A)
+Ev:
+	C0 = [1,3]A + [2,3]F1 + [1,2]F2 + [0,2]B + H(B) + H(A)
+smt took 0.21s
+enumerate: 25
+Gb:
+	F0 = H(B + delta) + H(B) + [1,3]delta
+	F1 = H(A + delta) + B + H(A) + delta
+	C0 = A + [1,3]H(A + delta) + [2,3]H(B + delta) + [1]delta + [0,1]H(B) + [0,2]H(A)
+Ev:
+	C0 = A + [2,3]F1 + [1,3]F2 + [1,3]B + H(B) + H(A)
+smt took 0.20s
+enumerate: 26
+Gb:
+	F0 = H(B + delta) + H(A + delta) + B + [1,3]delta + H(B) + H(A)
+	F1 = H(A + delta) + B + H(A) + delta
+	C0 = A + [1,3]H(A + delta) + B + [2,3]H(B + delta) + [1,2,3]delta + [0,1]H(B) + [0,2]H(A)
+Ev:
+	C0 = A + [2,3]F1 + [1,2]F2 + [0,2]B + H(B) + H(A)
+smt took 0.47s
+enumerate: 27
+Gb:
+	F0 = A + H(A + delta) + B + H(A)
+	F1 = A + H(A + B) + H(A + B + delta) + B + [2,3]delta
+	C0 = [0,2]H(A + delta) + B + [1,2]H(A + B) + [3]delta + [0,3]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [2,3]A + [0,2]F1 + [0,3]F2 + [0,1]B + H(A + B) + H(A)
+smt took 0.21s
+enumerate: 28
+Gb:
+	F0 = H(A + delta) + B + H(A) + [0,2]delta
+	F1 = A + H(A + B) + H(A + B + delta) + B + [2,3]delta
+	C0 = A + [0,2]H(A + delta) + B + [1,2]H(A + B) + [0,2,3]delta + [0,3]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [1,2]A + [0,2]F1 + [0,3]F2 + [0,1]B + H(A + B) + H(A)
+smt took 0.20s
+enumerate: 29
+Gb:
+	F0 = A + H(A + B) + B + H(A + delta) + [0,2]delta + H(A + B + delta) + H(A)
+	F1 = H(A + B) + H(A + B + delta) + B + [0,3]delta
+	C0 = A + [0,2]H(A + delta) + B + [1,2]H(A + B) + [0,2,3]delta + [0,3]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [2,3]F2 + [1,2]B + H(A + B) + H(A)
+smt took 0.20s
+enumerate: 30
+Gb:
+	F0 = A + H(A + B) + B + H(A + delta) + [0,2]delta + H(A + B + delta) + H(A)
+	F1 = H(A + B) + H(A + B + delta) + [0,2]delta
+	C0 = A + [0,2]H(A + delta) + [1,2]H(A + B) + [0]delta + [0,3]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [2,3]F2 + [0,2]B + H(A + B) + H(A)
+smt took 0.33s
+enumerate: 31
+Gb:
+	F0 = A + H(B + delta) + B + H(B)
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,2]F2 + [1,3]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 32
+Gb:
+	F0 = A + H(B + delta) + B + H(B)
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,1]A + H(A + B) + [1,2]F2 + [2,3]B + [1,3]F1 + H(B)
+smt took 0.22s
+enumerate: 33
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,2]A + H(A + B) + [1,2]F2 + [2,3]B + [1,3]F1 + H(B)
+smt took 0.21s
+enumerate: 34
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = H(A + B) + H(A + B + delta) + B
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,3]B + H(B) + [1,2]F2 + [2,3]F1
+smt took 0.20s
+enumerate: 35
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [2,3]delta + H(A + B + delta) + H(B)
+	F1 = H(B) + H(B + delta) + B + [0,2]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [1,2]A + H(A + B) + [1,3]F2 + [0,1]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 36
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [2,3]delta + H(A + B + delta) + H(B)
+	F1 = A + H(B + delta) + B + H(B) + delta
+	C0 = A + [0,3]H(A + B) + B + [2,3]H(B + delta) + [1,2,3]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,1]A + H(A + B) + [1,3]F2 + [0,1]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 37
+Gb:
+	F0 = A + H(B + delta) + B + H(B) + delta
+	F1 = A + H(A + B) + B + H(B + delta) + [2,3]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + B + [2,3]H(B + delta) + [1,2,3]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,1]A + H(A + B) + [1,2]F2 + [0,1]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 38
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [0,2]delta
+	C0 = A + [0,3]H(A + B) + B + [2,3]H(B + delta) + [1,2,3]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,2]F2 + [0,2]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 39
+Gb:
+	F0 = A + H(B + delta) + B + H(B)
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [0,2]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,2]F2 + [0,2]B + [1,3]F1 + H(B)
+smt took 0.21s
+enumerate: 40
+Gb:
+	F0 = H(B + delta) + H(B) + [0,3]delta
+	F1 = H(B + delta) + H(A + B) + B + [1,2]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + B + [2,3]H(B + delta) + [1,2,3]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,2]F2 + [0,3]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 41
+Gb:
+	F0 = A + H(B + delta) + H(B) + [0,1]delta
+	F1 = A + H(A + B) + H(B + delta) + delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,2]F2 + B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 42
+Gb:
+	F0 = H(B + delta) + H(B) + [0,3]delta
+	F1 = A + H(A + B) + H(B + delta) + delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + B + [2,3]H(B + delta) + [1,2,3]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,2]F2 + B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 43
+Gb:
+	F0 = A + H(B + delta) + B + H(B)
+	F1 = A + H(A + B) + B + H(B + delta) + [2,3]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,2]F2 + [0,1]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 44
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = A + H(A + B) + B + H(B + delta) + [2,3]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + B + [2,3]H(B + delta) + [1,2,3]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,2]F2 + [0,1]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 45
+Gb:
+	F0 = A + H(B + delta) + H(B) + [2,3]delta
+	F1 = A + H(A + B) + H(B + delta) + H(B) + H(A + B + delta)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,2]F2 + H(B) + [1,3]F1
+smt took 0.21s
+enumerate: 46
+Gb:
+	F0 = H(B + delta) + H(B) + [1,2]delta
+	F1 = A + H(A + B) + H(B + delta) + H(B) + H(A + B + delta)
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,2]F2 + H(B) + [1,3]F1
+smt took 0.20s
+enumerate: 47
+Gb:
+	F0 = A + H(B + delta) + B + H(B) + delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,2]F2 + [2,3]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 48
+Gb:
+	F0 = H(B) + H(B + delta) + B + [0,2]delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,2]F2 + [2,3]B + [1,3]F1 + H(B)
+smt took 0.21s
+enumerate: 49
+Gb:
+	F0 = H(B + delta) + H(B) + [1,2]delta
+	F1 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,2]F2 + [1,2]B + [1,3]F1 + H(B)
+smt took 0.20s
+enumerate: 50
+Gb:
+	F0 = H(B) + H(B + delta) + B + [0,2]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,2]F2 + [1,3]B + [1,3]F1 + H(B)
+smt took 0.21s
+enumerate: 51
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,3]B + H(B) + [1,2]F2 + [1,3]F1
+smt took 0.23s
+enumerate: 52
+Gb:
+	F0 = H(B + delta) + H(B) + [1,2]delta
+	F1 = H(B + delta) + H(A + B) + B + [1,2]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = H(B) + H(A + B) + [1,2]F2 + [0,3]B + [1,3]F1
+smt took 0.20s
+enumerate: 53
+Gb:
+	F0 = H(B + delta) + H(B) + [0,3]delta
+	F1 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,2]B + H(B) + [1,2]F2 + [1,3]F1
+smt took 0.20s
+enumerate: 54
+Gb:
+	F0 = H(B + delta) + H(B) + [0,3]delta
+	F1 = A + H(A + B) + H(B + delta) + H(B) + H(A + B + delta)
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,2]A + H(A + B) + [1,2]F2 + H(B) + [1,3]F1
+smt took 0.20s
+enumerate: 55
+Gb:
+	F0 = H(B + delta) + H(B) + [0,3]delta
+	F1 = H(A + B) + H(A + B + delta) + B
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,2]B + H(B) + [1,2]F2 + [2,3]F1
+smt took 0.21s
+enumerate: 56
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = H(A + B) + H(A + B + delta) + B
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,2]B + H(B) + [1,3]F2 + [2,3]F1
+smt took 0.20s
+enumerate: 57
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = H(A + B) + H(A + B + delta) + B + delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,3]F2 + [1,2]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 58
+Gb:
+	F0 = H(B) + H(B + delta) + B + [0,2]delta
+	F1 = H(A + B) + H(A + B + delta) + B + delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,2]F2 + [1,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 59
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = H(A + B) + H(A + B + delta) + [0,1]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,1]A + H(A + B) + [1,3]F2 + [2,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 60
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = A + H(A + B) + H(A + B + delta) + B + [0,2]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,3]F2 + [1,2]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 61
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = A + H(A + B) + H(A + B + delta) + [0,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,2]A + H(A + B) + [1,3]F2 + [2,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 62
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = A + H(B + delta) + B + H(B) + delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,3]F2 + [2,3]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 63
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = A + H(B + delta) + H(B) + [0,1]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,3]F2 + [1,2]B + [1,2]F1 + H(B)
+smt took 0.21s
+enumerate: 64
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = H(B + delta) + H(B) + [0,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,2]B + H(B) + [1,3]F2 + [1,2]F1
+smt took 0.20s
+enumerate: 65
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = H(B) + H(B + delta) + B + [0,2]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,3]F2 + [2,3]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 66
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = H(A + B) + H(A + B + delta) + [2,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,3]F2 + [2,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 67
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = A + H(A + B) + H(A + B + delta) + B + [1,3]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,3]F2 + [1,2]B + [2,3]F1 + H(B)
+smt took 0.19s
+enumerate: 68
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = A + H(A + B) + H(A + B + delta) + [1,2]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,3]F2 + [2,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 69
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = H(B + delta) + H(B) + [1,2]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = A + H(A + B) + [1,3]F2 + [1,2]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 70
+Gb:
+	F0 = H(B + delta) + H(A + B) + B + [0,3]delta + H(A + B + delta) + H(B)
+	F1 = A + H(B + delta) + H(B) + [2,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,3]A + H(A + B) + [1,3]F2 + [1,2]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 71
+Gb:
+	F0 = A + H(B + delta) + H(B) + [0,1]delta
+	F1 = A + H(A + B) + H(B + delta) + H(B) + H(A + B + delta)
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,1]A + H(A + B) + [1,2]F2 + H(B) + [1,3]F1
+smt took 0.20s
+enumerate: 72
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = H(B) + H(B + delta) + B + [1,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [1,2]A + H(A + B) + [1,3]F2 + [2,3]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 73
+Gb:
+	F0 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	F1 = A + H(B + delta) + B + H(B)
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,1]A + H(A + B) + [1,3]F2 + [2,3]B + [1,2]F1 + H(B)
+smt took 0.20s
+enumerate: 74
+Gb:
+	F0 = A + H(B + delta) + H(B) + [0,1]delta
+	F1 = A + H(A + B) + H(A + B + delta) + B + [1,3]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,2]F2 + [1,2]B + [2,3]F1 + H(B)
+smt took 0.19s
+enumerate: 75
+Gb:
+	F0 = A + H(B + delta) + B + H(B) + delta
+	F1 = H(A + B) + H(A + B + delta) + [2,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,2]F2 + [2,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 76
+Gb:
+	F0 = H(B) + H(B + delta) + B + [0,2]delta
+	F1 = A + H(A + B) + H(A + B + delta) + [1,2]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,3]A + H(A + B) + [1,2]F2 + [2,3]B + [2,3]F1 + H(B)
+smt took 0.20s
+enumerate: 77
+Gb:
+	F0 = A + H(A + B) + H(B + delta) + H(B) + H(A + B + delta)
+	F1 = H(A + B) + H(A + B + delta) + [2,3]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = [2,3]A + H(A + B) + [1,3]F2 + H(B) + [2,3]F1
+smt took 0.19s
+enumerate: 78
+Gb:
+	F0 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	F1 = H(A + B) + H(A + B + delta) + B
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [0,1]H(B) + [3]delta
+Ev:
+	C0 = H(A + B) + [1,3]B + H(B) + [1,3]F2 + [2,3]F1
+smt took 0.20s
+enumerate: 79
+Gb:
+	F0 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	F1 = A + H(A + B) + H(A + B + delta) + B + [1,3]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,3]F2 + [1,3]B + [2,3]F1 + H(B)
+smt took 0.19s
+enumerate: 80
+Gb:
+	F0 = A + H(B + delta) + B + H(B)
+	F1 = A + H(A + B) + H(A + B + delta) + B + [1,3]delta
+	C0 = A + [0,3]H(A + B) + [2,3]H(B + delta) + [1]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,2]F2 + [1,3]B + [2,3]F1 + H(B)
+smt took 0.22s
+enumerate: 81
+Gb:
+	F0 = A + H(A + B) + H(A + B + delta) + B + [0,1]delta
+	F1 = H(A + B) + H(A + B + delta) + H(A + delta) + H(A) + [0,1]delta
+	C0 = [1,2]H(A + B) + B + [1,3]H(A + delta) + [0]delta + [0,3]H(A + B + delta) + [0,2]H(A)
+Ev:
+	C0 = [0,1]A + [0,1]F1 + [1,3]F2 + [2,3]B + H(A + B) + H(A)
+smt took 0.47s
+enumerate: 82
+Gb:
+	F0 = A + H(A + delta) + H(A) + [0,1]delta
+	F1 = H(A + B) + H(A + B + delta) + B + [1,2]delta
+	C0 = A + [0,3]H(A + B) + B + [0,2]H(A + delta) + [0,1,2]delta + [1,2]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [1,2]F2 + [0,3]B + H(A + B) + H(A)
+smt took 0.20s
+enumerate: 83
+Gb:
+	F0 = A + H(A + delta) + B + H(A)
+	F1 = A + H(A + B) + B + H(A + delta) + [1,3]delta + H(A + B + delta) + H(A)
+	C0 = [0,2]H(A + delta) + B + [1,2]H(A + B) + [3]delta + [0,3]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [0,2]A + H(A + B) + [0,3]F2 + [1,3]B + [2,3]F1 + H(A)
+smt took 0.20s
+enumerate: 84
+Gb:
+	F0 = A + H(A + delta) + B + H(B + delta) + H(B) + H(A)
+	F1 = H(A + delta) + H(A) + [2,3]delta
+	C0 = [2,3]H(B + delta) + [0,2]H(A + delta) + B + [3]delta + [0,1]H(B) + [1,3]H(A)
+Ev:
+	C0 = [2,3]A + [2,3]F1 + [0,3]F2 + [0,1]B + H(B) + H(A)
+smt took 0.98s
+enumerate: 85
+Gb:
+	F0 = A + H(A + B) + H(A + B + delta) + delta
+	F1 = A + H(A + delta) + H(A) + [2,3]delta
+	C0 = A + [0,2]H(A + delta) + B + [1,2]H(A + B) + [0,2,3]delta + [0,3]H(A + B + delta) + [1,3]H(A)
+Ev:
+	C0 = [0,1]A + [0,3]F1 + [0,2]F2 + B + H(A + B) + H(A)
+smt took 0.25s
+enumerate: 86
+Gb:
+	F0 = A + H(A + delta) + B + H(A)
+	F1 = A + H(A + B) + B + H(A + delta) + [1,3]delta + H(A + B + delta) + H(A)
+	C0 = A + [0,3]H(A + B) + [1,3]H(A + delta) + [1]delta + [1,2]H(A + B + delta) + [0,2]H(A)
+Ev:
+	C0 = [0,2]A + H(A + B) + [1,2]F2 + [1,3]B + [2,3]F1 + H(A)
+smt took 0.20s
+enumerate: 87
+Gb:
+	F0 = H(A + delta) + B + H(A) + [0,2]delta
+	F1 = H(A + B) + B + H(A + delta) + delta + H(A + B + delta) + H(A)
+	C0 = A + [0,3]H(A + B) + [1,3]H(A + delta) + [1]delta + [1,2]H(A + B + delta) + [0,2]H(A)
+Ev:
+	C0 = A + H(A + B) + [1,2]F2 + [1,3]B + [2,3]F1 + H(A)
+smt took 0.21s
+enumerate: 88
+Gb:
+	F0 = A + H(B + delta) + B + H(B)
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + B + [1]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [0,1]A + [0,2]F1 + [1,2]F2 + [2,3]B + H(A + B) + H(B)
+smt took 0.22s
+enumerate: 89
+Gb:
+	F0 = H(A + B) + H(A + B + delta) + [0,1]delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + B + [1]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [0,1]A + [0,2]F1 + [0,1]F2 + [2,3]B + H(A + B) + H(B)
+smt took 0.20s
+enumerate: 90
+Gb:
+	F0 = A + H(A + B) + H(A + B + delta) + [0,3]delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + B + [1]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [1,2]A + [0,2]F1 + [0,1]F2 + [2,3]B + H(A + B) + H(B)
+smt took 0.21s
+enumerate: 91
+Gb:
+	F0 = H(A + B) + H(A + B + delta) + B
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + B + [1]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [0,2]F1 + [0,1]F2 + H(B) + [1,3]B + H(A + B)
+smt took 0.20s
+enumerate: 92
+Gb:
+	F0 = A + H(A + B) + H(A + B + delta) + B + [1,3]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [1,3]delta
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + B + [1]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [0,2]A + [0,2]F1 + [0,1]F2 + [1,3]B + H(A + B) + H(B)
+smt took 0.42s
+enumerate: 93
+Gb:
+	F0 = A + H(A + delta) + B + H(A) + [0,2]delta
+	F1 = H(B + delta) + H(B) + [0,2]delta
+	C0 = A + [0,2]H(A + delta) + [2,3]H(B + delta) + [0]delta + [0,1]H(B) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [2,3]F2 + [0,2]B + H(B) + H(A)
+smt took 0.35s
+enumerate: 94
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + B + [1]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [1,2]A + [0,2]F1 + [1,2]F2 + [2,3]B + H(A + B) + H(B)
+smt took 0.20s
+enumerate: 95
+Gb:
+	F0 = A + H(B + delta) + B + H(B) + delta
+	F1 = A + H(A + B) + B + H(B + delta) + [0,1]delta + H(A + B + delta) + H(B)
+	C0 = A + [0,3]H(A + B) + B + [0,1]H(B + delta) + [0,1,2]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = [2,3]A + [0,2]F1 + [1,2]F2 + [2,3]B + H(A + B) + H(B)
+smt took 0.20s
+enumerate: 96
+Gb:
+	F0 = H(B) + H(B + delta) + B + [1,3]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [0,2]delta
+	C0 = A + [0,3]H(A + B) + [0,1]H(B + delta) + [2]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = A + [0,2]F1 + [1,2]F2 + [0,2]B + H(A + B) + H(B)
+smt took 0.21s
+enumerate: 97
+Gb:
+	F0 = H(A + B) + H(A + B + delta) + B + delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [0,2]delta
+	C0 = A + [0,3]H(A + B) + [0,1]H(B + delta) + [2]delta + [1,2]H(A + B + delta) + [2,3]H(B)
+Ev:
+	C0 = A + [0,2]F1 + [0,1]F2 + [0,2]B + H(A + B) + H(B)
+smt took 0.20s
+enumerate: 98
+Gb:
+	F0 = H(B) + H(B + delta) + B + [0,2]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [0,2]delta
+	C0 = [0,1]H(B + delta) + [0,3]H(A + B) + [1,2]H(A + B + delta) + [2,3]H(B) + [0]delta
+Ev:
+	C0 = H(B) + [0,2]F1 + [1,2]F2 + [0,2]B + H(A + B)
+smt took 0.24s
+enumerate: 99
+Gb:
+	F0 = H(B) + H(B + delta) + B + [0,2]delta
+	F1 = H(B + delta) + H(A + B) + H(A + B + delta) + H(B) + [0,2]delta
+	C0 = [2,3]H(B + delta) + [0,3]H(A + B) + B + [2]delta + [1,2]H(A + B + delta) + [0,1]H(B)
+Ev:
+	C0 = H(B) + H(A + B) + [1,2]F2 + [0,2]B + [1,3]F1
+smt took 0.21s
+enumerate: 100
+Gb:
+	F0 = A + H(A + delta) + B + H(A) + [0,2]delta
+	F1 = H(B + delta) + H(B) + [1,3]delta
+	C0 = A + [0,2]H(A + delta) + B + [2,3]H(B + delta) + [0,2,3]delta + [0,1]H(B) + [1,3]H(A)
+Ev:
+	C0 = [1,3]A + [0,2]F1 + [2,3]F2 + [1,3]B + H(B) + H(A)
+enumeration took 30.23s
