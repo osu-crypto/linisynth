@@ -167,6 +167,17 @@ def shortcuts():
         , "adaptive"    : 0
         }
 
+    d['half-gate-adaptive'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "adaptive"    : 1
+        }
+
     d['half-gate-cheaper'] = \
         { "gate"        : and_gate
         , "size"        : 2
@@ -515,7 +526,7 @@ def get_view(Gb, params, i, j, z):# {{{
     v = smatrix(params['input_bits'], width, initialize=False)
     for row in range(params['input_bits']):
         for col in range(width):
-            if row == col or (col == params['input_bits'] and alphas[row]):
+            if row == col or (col == params['delta'] and alphas[row]):
                 v[row][col] = T
             else:
                 v[row][col] = F
@@ -892,12 +903,17 @@ def mapping_to_pretty_str( scheme ):# {{{
 
     # returns a list of hashes, where each line corresponds to F0, F1, C, or Ev0
     # each hash is a mapping of each argument and which combinations of i/j,z call it
-    def make_nonlinear(scheme, is_ev):
+    def make_nonlinear(scheme, is_ev, adaptive):
         h_calls = scheme['params']['h_calls_ev' if is_ev else 'h_calls_gb']
         size    = scheme['params']['output_bits'] if is_ev else scheme['params']['size']+1
         ms      = scheme['ev' if is_ev else 'gb']
         cs      = scheme['ec' if is_ev else 'cs']
         fresh_names = {} # { (i,z) : [ fresh_names ] }
+
+        h_strs  = {}    # { "h1" : "H(A + B)" }
+        h_strs_rev = {} # { "H(A + B)" : "h1" }
+        h_ctr = 0
+
         for i in range(len(ms)):
             for z in range(len(ms[i])):
                 fresh_names[(i,z)] = []
@@ -916,10 +932,19 @@ def mapping_to_pretty_str( scheme ):# {{{
                     # add delta
                     fresh_names[(i,z)].append('delta')
                 # add names for the oracle queries
-                cur_inp = 0
                 for row in range(h_calls):
                     args = map(lambda a: args_str(a, fresh_names[(i,z)]), cs[i][z][row].lhs)
-                    var = "H({})".format(", ".join(args))
+                    if adaptive:
+                        h_str = "H({})".format(", ".join(args))
+                        if h_str in h_strs_rev:
+                            var = h_strs_rev[h_str]
+                        else:
+                            var = "h" + str(h_ctr)
+                            h_ctr += 1
+                            h_strs[var] = h_str
+                            h_strs_rev[h_str] = var
+                    else: 
+                        var = "H({})".format(", ".join(args))
                     fresh_names[(i,z)].append(var)
         # loop through each line of the Gb/Ev and figure out which
         # fresh vars are shared across i/j,z combinations 
@@ -939,23 +964,19 @@ def mapping_to_pretty_str( scheme ):# {{{
                             else:
                                 args[name].add((i))
             mapping.append(args)
-        return mapping
-
-    gb = make_nonlinear(scheme, False)
-
-    # TODO figure out how to deal with nested calls to the oracle 
-    #      maybe switch back to the old way of printing each oracle query individually?
-    #      then this whole thing becomes three steps: figure out names, catalog, print
-    #      go back in git history to find code that did this
-
-    # now create the string for each arg
+        return (mapping, h_strs)
 
     if params['helper_bits']:
-        all_combinations = set(itertools.product(range(2**params['input_bits']), range(2**params['helper_bits'])))
+        all_combinations = \
+            set(itertools.product(range(2**params['input_bits']), range(2**params['helper_bits'])))
     else:
         all_combinations = set(range(2**params['input_bits']))
 
+    (gb, h_calls) = make_nonlinear(scheme, False, params['adaptive'])
     s += "Gb:\n"
+    if params['adaptive']:
+        for h_var in sorted(h_calls.keys()):
+            s += "\t{} = {}\n".format(h_var, h_calls[h_var])
     for i, row in enumerate(gb):
         if i < params['size']:
             name = 'F' + str(i)
@@ -963,9 +984,7 @@ def mapping_to_pretty_str( scheme ):# {{{
             name = 'C' + str(i - params['size'])
         s += "\t{} = ".format(name)
         args = []
-        argnames = row.keys()
-        argnames.sort()
-        for argname in argnames:
+        for argname in sorted(row.keys()):
             izs = row[argname]
             if izs == all_combinations:
                 args.append(argname)
@@ -974,15 +993,13 @@ def mapping_to_pretty_str( scheme ):# {{{
                 args.append(izs_str + argname)
         s += " + ".join(args) + "\n"
 
-    ev = make_nonlinear(scheme, True)
+    (ev, h_calls) = make_nonlinear(scheme, True, params['adaptive'])
     s += "Ev:\n"
     for i, row in enumerate(ev):
         name = 'C' + str(i)
         s += "\t{} = ".format(name)
         args = []
-        argnames = row.keys()
-        argnames.sort()
-        for argname in argnames:
+        for argname in sorted(row.keys()):
             izs = row[argname]
             if izs == all_combinations:
                 args.append(argname)
