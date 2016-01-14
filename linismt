@@ -100,6 +100,17 @@ def shortcuts():
         , "input_bits"  : 4
         , "output_bits" : 1
         , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['lt2'] = \
+        { "gate"        : lt_gate
+        , "size"        : 3
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
         , "h_calls_gb"  : 8
         , "h_calls_ev"  : 4
         , "helper_bits" : 0
