@@ -3,6 +3,7 @@
 # imports
 from pysmt.shortcuts import *
 from pysmt.typing import BOOL, INT
+from joblib import Parallel, delayed
 import string
 import itertools
 import copy
@@ -10,6 +11,7 @@ import tqdm
 import sys
 import argparse
 import time
+import multiprocessing
 
 ################################################################################
 # shortcuts {{{
@@ -1134,6 +1136,44 @@ def print_info(name, scheme, extra_info=False, csv=False):# {{{
             print "\tfree_vars    : {}".format(free_vars)
             print "\tformula_size : {}".format(formula_size)
 # }}}
+def run_shortcut(shortcut, args):# {{{
+    if args.all_gates or args.verbose >= 2:
+        print_truth_table(shortcut['gate'], shortcut['input_bits'])
+    scheme = generate_gb( shortcut
+                        , check_security = not args.nocorrect
+                        , check_correct  = not args.nosecure
+                        , check_inv      = not args.noinv
+                        )
+    if args.verbose:
+        if args.verbose > 2:
+            print scheme['params']
+        print_info(args.shortcut, scheme, extra_info=args.verbose > 1)
+        print "formula generation took {0:.2f}s".format(time.time() - start)
+        smt_start = time.time()
+    if args.csv:
+        print_info(args.shortcut, scheme, extra_info=True, csv=True)
+    if args.nocheck:
+        return
+    else:
+        if args.enumerate or args.limitedenumerate:
+            if args.verbose:
+                print "enumerating formula with {}...".format(args.solver)
+            enumerate_scheme(scheme, args.solver, args.verbose, args.pretty, args.limitedenumerate)
+        else:
+            if args.verbose:
+                print "checking formula with {}...".format(args.solver)
+            m = check_scheme(scheme, args.solver)
+            if args.verbose:
+                end = time.time()
+                print "smt took {0:.2f}s".format(end - smt_start)
+                print "total time was {0:.2f}s".format(end - start)
+            if m:
+                print_model(scheme, m, pretty=args.pretty)
+                return
+            else:
+                print "unsat"
+                return
+# }}}
 if __name__ == "__main__":# {{{
     args = get_args()
     if args.verbose:
@@ -1157,43 +1197,9 @@ if __name__ == "__main__":# {{{
             s_ = copy.copy(s)
             s_['gate'] = gate
             shortcuts.append(s_)
+        for s in shortcuts:
+            run_shortcut(s,args) 
     else:
-        shortcuts = [shortcuts()[args.shortcut]]
-    for shortcut in shortcuts:
-        if args.all_gates or args.verbose >= 2:
-            print_truth_table(shortcut['gate'], shortcut['input_bits'])
-        scheme = generate_gb( shortcut
-                            , check_security = not args.nocorrect
-                            , check_correct  = not args.nosecure
-                            , check_inv      = not args.noinv
-                            )
-        if args.verbose:
-            if args.verbose > 2:
-                print scheme['params']
-            print_info(args.shortcut, scheme, extra_info=args.verbose > 1)
-            print "formula generation took {0:.2f}s".format(time.time() - start)
-            smt_start = time.time()
-        if args.csv:
-            print_info(args.shortcut, scheme, extra_info=True, csv=True)
-        if args.nocheck:
-            continue
-        else:
-            if args.enumerate or args.limitedenumerate:
-                if args.verbose:
-                    print "enumerating formula with {}...".format(args.solver)
-                enumerate_scheme(scheme, args.solver, args.verbose, args.pretty, args.limitedenumerate)
-            else:
-                if args.verbose:
-                    print "checking formula with {}...".format(args.solver)
-                m = check_scheme(scheme, args.solver)
-                if args.verbose:
-                    end = time.time()
-                    print "smt took {0:.2f}s".format(end - smt_start)
-                    print "total time was {0:.2f}s".format(end - start)
-                if m:
-                    print_model(scheme, m, pretty=args.pretty)
-                    continue
-                else:
-                    print "unsat"
-                    continue
+        run_shortcut(shortcuts()[args.shortcut], args)
+
 # }}}
