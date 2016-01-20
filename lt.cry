@@ -1,0 +1,11 @@
+lt : [2] -> [2] -> Bit
+lt x y = l6
+  where
+    l1 = x@1 || y@1
+    l2 = x@0 ^ x@1
+    l3 = x@0 ^ y@0
+    l4 = l2 ^ l1
+    l5 = l3 || l4
+    l6 = l5 ^ x@0
+
+property lt_correct x y = lt x y == x < y

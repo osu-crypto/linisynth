@@ -16,6 +16,28 @@ import time
 def shortcuts():
     d = {}
 
+    d['any-size-3-in2'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['any-size-3-in3'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['mux'] = \
         { "gate"        : mux_gate
         , "size"        : 2
@@ -498,6 +520,12 @@ class constraint:
 
     def get_variables(self):
         return self.lhs.get_variables() + self.rhs.get_variables()
+# }}}
+def all_gates(nins):# {{{
+    for tt in itertools.product(*[[True,False]]*(2**nins)):
+        def gate(i,j,tt=tt):
+            return [tt[i^j]]
+        yield gate
 # }}}
 ################################################################################
 ## formula generation
@@ -1030,6 +1058,13 @@ def print_model( scheme, model, pretty=False ):# {{{
 # }}}
 ################################################################################
 ## command line interface
+def print_truth_table(gate, input_bits):# {{{
+    outputs = []
+    for i in range(2**input_bits):
+        for j in range(2**input_bits):
+            outputs.extend(gate(i,j))
+    print "truth table:", "".join(["1" if b else "0" for b in outputs ])
+# }}}
 def get_args():# {{{
     parser = argparse.ArgumentParser()
     parser.add_argument('shortcut', nargs='?', help='which shortcut to use')
@@ -1046,6 +1081,7 @@ def get_args():# {{{
     parser.add_argument('-e', '--enumerate', action='store_true', help='enumerate solutions')
     parser.add_argument('-E', '--limitedenumerate', help='enumerate N solutions')
     parser.add_argument('-p', '--pretty', action='store_true', help='pretty print solutions')
+    parser.add_argument('-g', '--all-gates', action='store_true', help='try all possible gates')
     args = parser.parse_args()
     return args
 # }}}
@@ -1114,38 +1150,50 @@ if __name__ == "__main__":# {{{
     if not args.shortcut:
         print "error: no shortcut provided"
         sys.exit(0)
-    scheme = generate_gb( shortcuts()[args.shortcut]
-                        , check_security = not args.nocorrect
-                        , check_correct  = not args.nosecure
-                        , check_inv      = not args.noinv
-                        )
-    if args.verbose:
-        if args.verbose > 2:
-            print scheme['params']
-        print_info(args.shortcut, scheme, extra_info=args.verbose > 1)
-        print "formula generation took {0:.2f}s".format(time.time() - start)
-        smt_start = time.time()
-    if args.csv:
-        print_info(args.shortcut, scheme, extra_info=True, csv=True)
-    if args.nocheck:
-        sys.exit(0)
+    if args.all_gates:
+        s = shortcuts()[args.shortcut]
+        shortcuts = []
+        for gate in all_gates(s["input_bits"]):
+            s_ = copy.copy(s)
+            s_['gate'] = gate
+            shortcuts.append(s_)
     else:
-        if args.enumerate or args.limitedenumerate:
-            if args.verbose:
-                print "enumerating formula with {}...".format(args.solver)
-            enumerate_scheme(scheme, args.solver, args.verbose, args.pretty, args.limitedenumerate)
+        shortcuts = [shortcuts()[args.shortcut]]
+    for shortcut in shortcuts:
+        if args.all_gates or args.verbose >= 2:
+            print_truth_table(shortcut['gate'], shortcut['input_bits'])
+        scheme = generate_gb( shortcut
+                            , check_security = not args.nocorrect
+                            , check_correct  = not args.nosecure
+                            , check_inv      = not args.noinv
+                            )
+        if args.verbose:
+            if args.verbose > 2:
+                print scheme['params']
+            print_info(args.shortcut, scheme, extra_info=args.verbose > 1)
+            print "formula generation took {0:.2f}s".format(time.time() - start)
+            smt_start = time.time()
+        if args.csv:
+            print_info(args.shortcut, scheme, extra_info=True, csv=True)
+        if args.nocheck:
+            continue
         else:
-            if args.verbose:
-                print "checking formula with {}...".format(args.solver)
-            m = check_scheme(scheme, args.solver)
-            if args.verbose:
-                end = time.time()
-                print "smt took {0:.2f}s".format(end - smt_start)
-                print "total time was {0:.2f}s".format(end - start)
-            if m:
-                print_model(scheme, m, pretty=args.pretty)
-                sys.exit(0)
+            if args.enumerate or args.limitedenumerate:
+                if args.verbose:
+                    print "enumerating formula with {}...".format(args.solver)
+                enumerate_scheme(scheme, args.solver, args.verbose, args.pretty, args.limitedenumerate)
             else:
-                print "unsat"
-                sys.exit(1)
+                if args.verbose:
+                    print "checking formula with {}...".format(args.solver)
+                m = check_scheme(scheme, args.solver)
+                if args.verbose:
+                    end = time.time()
+                    print "smt took {0:.2f}s".format(end - smt_start)
+                    print "total time was {0:.2f}s".format(end - start)
+                if m:
+                    print_model(scheme, m, pretty=args.pretty)
+                    continue
+                else:
+                    print "unsat"
+                    continue
 # }}}
