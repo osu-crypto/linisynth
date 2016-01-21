@@ -27,6 +27,28 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['any-size-3-in2-2'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 5
+        , "h_calls_ev"  : 3
+        , "helper_bits" : 0
+        }
+
+    d['any-size-3-in2-3'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 2
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['any-size-3-in3'] = \
         { "gate"        : None
         , "size"        : 3
