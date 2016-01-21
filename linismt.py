@@ -340,47 +340,62 @@ def bits(x, size):
     return [ (x&(2**i)>0) for i in range(size) ]
 # }}}
 # gates {{{
-def mux_gate(i,j):
-    [x0, x1, c] = bits(i^j, 3)
+
+def all_gates(nins, nouts):
+    truth_tables = []
+    for i in range(nouts):
+        tt = list(itertools.product(*[[True,False]]*(2**nins)))
+        truth_tables.append(tt)
+    indices = itertools.product(*[range(2**(2+nins))]*nouts)
+    for assn in indices:
+        def gate(inp, assn=assn):
+            outputs = []
+            for (out, ix) in enumerate(assn):
+                outputs.append(truth_tables[out][ix][inp])
+            return outputs
+        yield gate
+
+def mux_gate(x):
+    [x0, x1, c] = bits(x,3)
     return [x1 if c else x0]
 
-def eq_gate(i,j):
-    x = (i^j) & 0b11
-    y = ((i^j) & 0b1100) >> 2
+def eq_gate(i):
+    x = (i) & 0b11
+    y = (i & 0b1100) >> 2
     return [x == y]
 
-def lt_gate(i,j):
-    x = (i^j) & 0b11
-    y = ((i^j) & 0b1100) >> 2
+def lt_gate(i):
+    x = i & 0b11
+    y = (i & 0b1100) >> 2
     return [x < y]
 
-def leq_gate(i,j):
-    x = (i^j) & 0b11
-    y = ((i^j) & 0b1100) >> 2
+def leq_gate(i):
+    x = (i) & 0b11
+    y = (i & 0b1100) >> 2
     return [x <= y]
 
-def and_gate(i, j):
-    bs = bits(i^j, 2)
-    return [bs[0] and bs[1]]
+def and_gate(i):
+    [x,y] = bits(i, 2)
+    return [x and y]
 
-def and3_gate(i, j):
-    bs = bits(i^j, 3)
-    return [bs[0] and bs[1] and bs[2]]
+def and3_gate(i):
+    [x,y,z] = bits(i,3)
+    return [x and y and z]
 
-def xor_gate(i, j):
-    bs = bits(i^j, 2)
-    return [bs[0] ^ bs[1]]
+def xor_gate(i):
+    [x,y] = bits(i, 2)
+    return [x ^ y]
 
-def andxor_gate(i,j):
-    bs = bits(i^j, 3)
-    return [(bs[0] & bs[1]) ^ bs[2]]
+def andxor_gate(i):
+    [x,y,z] = bits(i, 3)
+    return [(x & y) ^ z]
 
-def nested_xor_gate(i, j):
-    bs = bits(i^j, 3)
-    return [bs[0] ^ bs[1] ^ bs[2]]
+def nested_xor_gate(i):
+    [x,y,z] = bits(i, 3)
+    return [x^y^z]
 
-def adder_gate(i,j):
-    [x, y, cin] = bits(i^j, 3)
+def adder_gate(i):
+    [x, y, cin] = bits(i, 3)
     z = x ^ y ^ cin
     cout = (x & y) | (z & cin)
     return [z, cout]
@@ -545,12 +560,6 @@ class constraint:
     def get_variables(self):
         return self.lhs.get_variables() + self.rhs.get_variables()
 # }}}
-def all_gates(nins):# {{{
-    for tt in itertools.product(*[[True,False]]*(2**nins)):
-        def gate(i,j,tt=tt):
-            return [tt[i^j]]
-        yield gate
-# }}}
 ################################################################################
 ## formula generation
 def generate_constraints(n_constraints, arity, previous_fresh, adaptive=True):# {{{
@@ -656,7 +665,7 @@ def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):# {{{
     view = get_view(Gb, params, i, j, z_gb)
     outs = Gb[i][z_gb].with_rows(params['output_rows'])
     for k in range(params['output_bits']):
-        if params['gate'](i,j)[k]:
+        if params['gate'](i^j)[k]:
             outs[k][params['delta']] = Not( outs[k][params['delta']] )
     checkL = view.concat_rows(outs).mul(B[i][j][z_gb])
     checkR = id_matrix(view.nrows, view.ncols).concat_rows(Ev[j][z_ev])
@@ -1083,11 +1092,9 @@ def print_model( scheme, model, pretty=False ):# {{{
 ################################################################################
 ## command line interface
 def print_truth_table(gate, input_bits):# {{{
-    outputs = []
     for i in range(2**input_bits):
-        for j in range(2**input_bits):
-            outputs.extend(gate(i,j))
-    print "truth table:", "".join(["1" if b else "0" for b in outputs ])
+        print "".join(["1" if b else "0" for b in gate(i) ]),
+    print
 # }}}
 def get_args():# {{{
     parser = argparse.ArgumentParser()
@@ -1215,7 +1222,7 @@ if __name__ == "__main__":# {{{
     if args.all_gates:
         s = shortcuts()[args.shortcut]
         shortcuts = []
-        for gate in all_gates(s["input_bits"]):
+        for gate in all_gates(s["input_bits"], s["output_bits"]):
             s_ = copy.copy(s)
             s_['gate'] = gate
             shortcuts.append(s_)
