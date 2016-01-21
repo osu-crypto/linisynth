@@ -18,6 +18,17 @@ import multiprocessing
 def shortcuts():
     d = {}
 
+    d['size3-in2-out2'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['any-size-3-in2'] = \
         { "gate"        : None
         , "size"        : 3
