@@ -3,7 +3,6 @@
 # imports
 from pysmt.shortcuts import *
 from pysmt.typing import BOOL, INT
-from joblib import Parallel, delayed
 import string
 import itertools
 import copy
@@ -11,7 +10,6 @@ import tqdm
 import sys
 import argparse
 import time
-import multiprocessing
 
 ################################################################################
 # shortcuts {{{
