@@ -10,6 +10,8 @@ import tqdm
 import sys
 import argparse
 import time
+import re
+from warnings import warn
 
 ################################################################################
 # shortcuts {{{
@@ -366,7 +368,7 @@ def all_gates(nins, nouts):
     for i in range(nouts):
         tt = list(itertools.product(*[[True,False]]*(2**nins)))
         truth_tables.append(tt)
-    indices = itertools.product(*[range(2**(2+nins))]*nouts)
+    indices = itertools.product(*[range(len(truth_tables[0]))]*nouts) 
     for assn in indices:
         def gate(inp, assn=assn):
             outputs = []
@@ -1111,16 +1113,37 @@ def print_model( scheme, model, pretty=False ):# {{{
 # }}}
 ################################################################################
 ## command line interface
-def print_truth_table(gate, input_bits):# {{{
-    for i in range(2**input_bits):
-        print "".join(["1" if b else "0" for b in gate(i) ]),
-    print
+def gate_to_str(gate, input_bits, output_bits):# {{{
+    outs = ["gate in={} out={} tt=[ ".format(input_bits, output_bits)]
+    for i in range(2**(input_bits)):
+        outs.append( "".join(["1" if b else "0" for b in gate(i) ]))
+        outs.append( " " )
+    outs.append(']')
+    return ''.join(outs)
+# }}}
+def gate_from_str(s):# {{{
+    m = re.match('gate in=(\d+) out=(\d+) tt=\[ ([01 ]+) \]', s)
+    if not m:
+        warn('invalid gate provided')
+        sys.exit(1)
+    input_bits  = int(m.group(1))
+    output_bits = int(m.group(2))
+    def to_bool(int_str):
+        return int(int_str) > 0
+    tt = m.group(3).split(' ')
+    tt = map(lambda s: map(to_bool, list(s)), tt)
+    def gate(x, tt=tt):
+        return tt[x]
+    return gate, input_bits, output_bits
+# }}}
+def print_truth_table(gate, input_bits, output_bits):# {{{
+    print gate_to_str(gate, input_bits, output_bits)
 # }}}
 def get_args():# {{{
     parser = argparse.ArgumentParser()
     parser.add_argument('shortcut', nargs='?', help='which shortcut to use')
-    parser.add_argument('--list', action='store_true', help='list shortcuts and parameters')
-    parser.add_argument('--shortlist', action='store_true', help='list shortcut names only')
+    parser.add_argument('-L', '--list', action='store_true', help='list shortcuts and parameters')
+    parser.add_argument('-l', '--shortlist', action='store_true', help='list shortcut names only')
     parser.add_argument('-C', '--nocorrect', action='store_true', help='skip correctness check')
     parser.add_argument('-S', '--nosecure', action='store_true', help='skip security check')
     parser.add_argument('-I', '--noinv', action='store_true', help='skip invertibility check')
@@ -1133,6 +1156,7 @@ def get_args():# {{{
     parser.add_argument('-E', '--limitedenumerate', help='enumerate N solutions')
     parser.add_argument('-p', '--pretty', action='store_true', help='pretty print solutions')
     parser.add_argument('-g', '--all-gates', action='store_true', help='try all possible gates')
+    parser.add_argument('-G', '--read-gate', action='store_true', help='read gate from stdin')
     args = parser.parse_args()
     return args
 # }}}
@@ -1186,8 +1210,8 @@ def print_info(name, scheme, extra_info=False, csv=False):# {{{
             print "\tformula_size : {}".format(formula_size)
 # }}}
 def run_shortcut(shortcut, args):# {{{
-    if args.all_gates or args.verbose >= 2:
-        print_truth_table(shortcut['gate'], shortcut['input_bits'])
+    if args.read_gate or args.all_gates or args.verbose >= 2:
+        print_truth_table(shortcut['gate'], shortcut['input_bits'], shortcut['output_bits'])
     scheme = generate_gb( shortcut
                         , check_security = not args.nocorrect
                         , check_correct  = not args.nosecure
@@ -1238,7 +1262,7 @@ if __name__ == "__main__":# {{{
         sys.exit(0)
     if not args.shortcut:
         print "error: no shortcut provided"
-        sys.exit(0)
+        sys.exit(1)
     if args.all_gates:
         s = shortcuts()[args.shortcut]
         shortcuts = []
@@ -1249,6 +1273,15 @@ if __name__ == "__main__":# {{{
         for s in shortcuts:
             run_shortcut(s,args) 
     else:
-        run_shortcut(shortcuts()[args.shortcut], args)
+        shortcut = shortcuts()[args.shortcut]
+        if args.read_gate:
+            s = sys.stdin.readline()
+            (gate, input_bits, output_bits) = gate_from_str(s)
+            shortcut['gate'] = gate
+            if shortcut['input_bits'] != input_bits:
+                warn("input bits in gate do not equal input bits in shortcut")
+            if shortcut['output_bits'] != output_bits:
+                warn("output bits in gate do not equal output bits in shortcut")
+        run_shortcut(shortcut, args)
 
 # }}}
