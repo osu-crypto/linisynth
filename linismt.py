@@ -434,7 +434,7 @@ def all_gates(nins, nouts):
 
 def mux2_gate(x):
     [x0, x1, y0, y1, c] = bits(x,5)
-    return [[y0, y1] if c else [x0, x1]]
+    return [y0, y1] if c else [x0, x1]
 
 def mux_gate(x):
     [x0, x1, c] = bits(x,3)
