@@ -18,6 +18,17 @@ from warnings import warn
 def shortcuts():
     d = {}
 
+    d['mux4in'] = \
+        { "gate"        : mux2_gate
+        , "size"        : 4
+        , "input_bits"  : 5
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['size3-in3-out2'] = \
         { "gate"        : None
         , "size"        : 3
@@ -29,6 +40,28 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['size3-in3-out2-2'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 3
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 6
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 0
+        }
+
+    d['size3-in3-out2-3'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 3
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 8
+        , "h_calls_ev"  : 6
+        , "helper_bits" : 0
+        }
+
     d['size3-in2-out2'] = \
         { "gate"        : None
         , "size"        : 3
@@ -37,6 +70,28 @@ def shortcuts():
         , "h_arity"     : 1
         , "h_calls_gb"  : 4
         , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
+    d['size3-in2-out2-2'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 5
+        , "h_calls_ev"  : 3
+        , "helper_bits" : 0
+        }
+
+    d['size3-in2-out2-3'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 6
+        , "h_calls_ev"  : 4
         , "helper_bits" : 0
         }
 
@@ -376,6 +431,10 @@ def all_gates(nins, nouts):
                 outputs.append(truth_tables[out][ix][inp])
             return outputs
         yield gate
+
+def mux2_gate(x):
+    [x0, x1, y0, y1, c] = bits(x,5)
+    return [[y0, y1] if c else [x0, x1]]
 
 def mux_gate(x):
     [x0, x1, c] = bits(x,3)
