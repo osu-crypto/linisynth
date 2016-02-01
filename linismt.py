@@ -17,6 +17,18 @@ from warnings import warn
 # shortcuts {{{
 def shortcuts():
     d = {}
+    d['privacy-free-and-gate'] = \
+        { "gate"         : and_gate
+        , "size"         : 1
+        , "input_bits"   : 2
+        , "output_bits"  : 1
+        , "h_arity"      : 1
+        , "h_calls_gb"   : 2
+        , "h_calls_ev"   : 1
+        , "privacy_free" : 1
+        , "adaptive"     : 0
+        }
+
 
     d['mux4in'] = \
         { "gate"        : mux2_gate
@@ -698,8 +710,8 @@ def get_view(Gb, params, i, j, z):# {{{
 # }}}
 def security(Gb, Gb_C, B, params):# {{{
     secure = T
-    with tqdm.tqdm(total=2**(2*params['input_bits']+params['helper_bits']), desc="security") as pbar:
-        for i in range(2**params['input_bits']):
+    with tqdm.tqdm(total=2**(params['color_bits']+params['input_bits']+params['helper_bits']), desc="security") as pbar:
+        for i in range(2**params['color_bits']):
             for j in range(2**params['input_bits']):
                 for z in range(2**params['helper_bits']):
                     view   = get_view(Gb, params, i, j, z)
@@ -728,7 +740,7 @@ def correctness(Gb, Gb_C, B, Ev, Ev_C, params):# {{{
     accum = T
     zijs  = {}
     with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
-        for i in range(2**params['input_bits']):
+        for i in range(2**params['color_bits']):
             for j in range(2**params['input_bits']):
                 z_assns = []
                 for z_gb in range(2**params['helper_bits']):
@@ -789,8 +801,14 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     adaptive = params['adaptive']
     if not 'helper_bits' in params:
         params['helper_bits'] = 0
+    if not 'privacy_free' in params:
+        params['privacy_free'] = False
     helper_bits = params['helper_bits']
     params['output_rows'] = range( size, size + output_bits )
+    if params['privacy_free']:
+        color_bits = params['color_bits'] = 0
+    else:
+        color_bits = params['color_bits'] = input_bits
     # print "params =", params
     ################################################################################
     ## variables
@@ -798,8 +816,8 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     gb = []
     cs = []
     lex_gb = T
-    with tqdm.tqdm(total=2**(input_bits+helper_bits), desc="gb") as pbar:
-        for i in range(2**input_bits):
+    with tqdm.tqdm(total=2**(color_bits+helper_bits), desc="gb") as pbar:
+        for i in range(2**color_bits):
             gb.append([])
             cs.append([])
             for z in range(2**helper_bits):
@@ -812,8 +830,8 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     # a basis change for each (i,j)
     bs = []
     bi = []
-    with tqdm.tqdm(total=2**(input_bits+helper_bits+input_bits), desc="bs") as pbar:
-        for i in range(2**input_bits):
+    with tqdm.tqdm(total=2**(color_bits+helper_bits+input_bits), desc="bs") as pbar:
+        for i in range(2**color_bits):
             bs.append([])
             bi.append([])
             for j in range(2**input_bits):
@@ -848,7 +866,7 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     if check_inv:
         I = id_matrix( gb_width, gb_width )
         with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
-            for i in range(2**input_bits):
+            for i in range(2**color_bits):
                 for j in range(2**input_bits):
                     for z in range(2**helper_bits):
                         p = I.eq( bs[i][j][z].mul(bi[i][j][z]) )
@@ -961,27 +979,31 @@ def reverse_mapping( scheme, model ):# {{{
             v = scheme['zijs'][k]
             scheme_['zijs'][k] = 1 if model.get_value(v).is_true() else 0
 
-    for i in range(2**scheme['params']['input_bits']):
+    for i in range(2**scheme['params']['color_bits']):
         scheme_['bs'].append([])
         for j in range(2**scheme['params']['input_bits']):
             scheme_['bs'][i].append([])
             for z in range(2**scheme['params']['helper_bits']):
                 scheme_['bs'][i][j].append( scheme['bs'][i][j][z].reverse_mapping(model) )
 
+    for i in range(2**scheme['params']['color_bits']):
         scheme_['gb'].append([])
-        scheme_['ev'].append([])
         scheme_['cs'].append([])
-        scheme_['ec'].append([])
         for z in range(2**scheme['params']['helper_bits']):
             scheme_['gb'][i].append( scheme['gb'][i][z].reverse_mapping(model) )
-            scheme_['ev'][i].append( scheme['ev'][i][z].reverse_mapping(model) )
-            # try:
             scheme_['cs'][i].append( [] )
-            scheme_['ec'][i].append( [] )
             for c in scheme['cs'][i][z]:
                 scheme_['cs'][i][z].append( c.reverse_mapping(model) )
-            for c in scheme['ec'][i][z]:
-                scheme_['ec'][i][z].append( c.reverse_mapping(model) )
+
+    for j in range(2**scheme['params']['input_bits']):
+        scheme_['ev'].append([])
+        scheme_['ec'].append([])
+        for z in range(2**scheme['params']['helper_bits']):
+            scheme_['ev'][j].append( scheme['ev'][j][z].reverse_mapping(model) )
+            scheme_['ec'][j].append( [] )
+            for c in scheme['ec'][j][z]:
+                scheme_['ec'][j][z].append( c.reverse_mapping(model) )
+
     return scheme_
 # }}}
 def mapping_to_str( scheme ):# {{{
@@ -1033,7 +1055,7 @@ def mapping_to_str( scheme ):# {{{
             ev_names = []
             cur_inp = 'A'
             for row in range(params['input_bits']):
-                ev_names.append(cur_inp)
+                ev_names.append(cur_inp + "'")
                 cur_inp = chr(ord(cur_inp)+1)
             cur_inp = 0
             for row in range(params['size']):
@@ -1074,9 +1096,9 @@ def mapping_to_pretty_str( scheme ):# {{{
         cs      = scheme['ec' if is_ev else 'cs']
         fresh_names = {} # { (i,z) : [ fresh_names ] }
 
-        h_strs  = {}    # { "h1" : "H(A + B)" }
+        h_strs     = {} # { "h1" : "H(A + B)" }
         h_strs_rev = {} # { "H(A + B)" : "h1" }
-        h_ctr = 0
+        h_ctr      = 0
 
         for i in range(len(ms)):
             for z in range(len(ms[i])):
@@ -1084,7 +1106,10 @@ def mapping_to_pretty_str( scheme ):# {{{
                 # add names for garbled inputs, delta, and ciphertexts
                 cur_inp = 'A'
                 for row in range(params['input_bits']):
-                    fresh_names[(i,z)].append(cur_inp)
+                    if is_ev:
+                        fresh_names[(i,z)].append(cur_inp + "'")
+                    else:
+                        fresh_names[(i,z)].append(cur_inp)
                     cur_inp = chr(ord(cur_inp)+1)
                 if is_ev:
                     # add F0, F1, etc
@@ -1115,7 +1140,7 @@ def mapping_to_pretty_str( scheme ):# {{{
         mapping = []
         for row in range(size):
             args = {} # { name: [(i,z)] }
-            for i in range(2**params['input_bits']):
+            for i in range(2**(params['input_bits'] if is_ev else params['color_bits'])):
                 for z in range(2**params['helper_bits']):
                     m = ms[i][z]
                     for fresh, fresh_is_set in enumerate(m[row]):
@@ -1131,10 +1156,10 @@ def mapping_to_pretty_str( scheme ):# {{{
         return (mapping, h_strs)
 
     if params['helper_bits']:
-        all_combinations = \
-            set(itertools.product(range(2**params['input_bits']), range(2**params['helper_bits'])))
+        all_gb_combinations = \
+            set(itertools.product(range(2**params['color_bits']), range(2**params['helper_bits'])))
     else:
-        all_combinations = set(range(2**params['input_bits']))
+        all_gb_combinations = set(range(2**params['color_bits']))
 
     (gb, h_calls) = make_nonlinear(scheme, False, params['adaptive'])
     s += "Gb:\n"
@@ -1150,22 +1175,31 @@ def mapping_to_pretty_str( scheme ):# {{{
         args = []
         for argname in sorted(row.keys()):
             izs = row[argname]
-            if izs == all_combinations:
+            if izs == all_gb_combinations:
                 args.append(argname)
             else:
                 izs_str = "[" + ",".join(map(str,izs)) + "]"
                 args.append(izs_str + argname)
         s += " + ".join(args) + "\n"
 
+    if params['helper_bits']:
+        all_ev_combinations = \
+            set(itertools.product(range(2**params['input_bits']), range(2**params['helper_bits'])))
+    else:
+        all_ev_combinations = set(range(2**params['input_bits']))
+
     (ev, h_calls) = make_nonlinear(scheme, True, params['adaptive'])
     s += "Ev:\n"
+    if params['adaptive']:
+        for h_var in sorted(h_calls.keys()):
+            s += "\t{} = {}\n".format(h_var, h_calls[h_var])
     for i, row in enumerate(ev):
         name = 'C' + str(i)
         s += "\t{} = ".format(name)
         args = []
         for argname in sorted(row.keys()):
             izs = row[argname]
-            if izs == all_combinations:
+            if izs == all_ev_combinations:
                 args.append(argname)
             else:
                 izs_str = "[" + ",".join(map(str,izs)) + "]"
