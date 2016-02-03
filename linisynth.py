@@ -185,6 +185,32 @@ def shortcuts():
         , "adaptive"    : 0
         }
 
+    d['privacy-free-mux'] = \
+        { "gate"        : mux_gate
+        , "size"        : 1
+        , "input_bits"  : 3
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 2
+        , "h_calls_ev"  : 1
+        , "helper_bits" : 0
+        , "adaptive"    : 0
+        , "privacy_free" : True
+        }
+
+    d['privacy-free-mux2'] = \
+        { "gate"        : mux2_gate
+        , "size"        : 2
+        , "input_bits"  : 5
+        , "output_bits" : 2
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 6
+        , "h_calls_ev"  : 4
+        , "helper_bits" : 0
+        , "adaptive"    : 1
+        , "privacy_free" : True
+        }
+
     d['leq'] = \
         { "gate"        : leq_gate
         , "size"        : 1
@@ -218,6 +244,17 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['eq3'] = \
+        { "gate"        : eq3_gate
+        , "size"        : 2
+        , "input_bits"  : 4
+        , "output_bits" : 1
+        , "h_arity"     : 1
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 2
+        , "helper_bits" : 0
+        }
+
     d['eq-smaller'] = \
         { "gate"        : eq_gate
         , "size"        : 1
@@ -240,8 +277,21 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['privacy-free-lt'] = \
+        { "gate"         : lt_gate
+        , "size"         : 1
+        , "input_bits"   : 2
+        , "output_bits"  : 1
+        , "h_arity"      : 1
+        , "h_calls_gb"   : 2
+        , "h_calls_ev"   : 1
+        , "helper_bits"  : 0
+        , "adaptive"     : 0
+        , "privacy_free" : 1
+        }
+
     d['lt'] = \
-        { "gate"        : lt_gate
+        { "gate"        : lt2_gate
         , "size"        : 2
         , "input_bits"  : 4
         , "output_bits" : 1
@@ -252,7 +302,7 @@ def shortcuts():
         }
 
     d['lt2'] = \
-        { "gate"        : lt_gate
+        { "gate"        : lt2_gate
         , "size"        : 3
         , "input_bits"  : 4
         , "output_bits" : 1
@@ -468,7 +518,16 @@ def eq_gate(i):
     y = (i & 0b1100) >> 2
     return [x == y]
 
+def eq3_gate(i):
+    x = (i) & 0b111
+    y = (i & 0b111000) >> 3
+    return [x == y]
+
 def lt_gate(i):
+    [x,y] = bits(i,2)
+    return [x < y]
+
+def lt2_gate(i):
     x = i & 0b11
     y = (i & 0b1100) >> 2
     return [x < y]
@@ -739,7 +798,7 @@ def helper_bit_permuted( m ):# {{{
 def correctness(Gb, Gb_C, B, Ev, Ev_C, params):# {{{
     accum = T
     zijs  = {}
-    with tqdm.tqdm(total=2**(2*params['input_bits']), desc="correctness") as pbar:
+    with tqdm.tqdm(total=2**(params['input_bits']+params['color_bits']), desc="correctness") as pbar:
         for i in range(2**params['color_bits']):
             for j in range(2**params['input_bits']):
                 z_assns = []
@@ -865,7 +924,7 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     bs_invertable = T
     if check_inv:
         I = id_matrix( gb_width, gb_width )
-        with tqdm.tqdm(total=2**(2*input_bits+helper_bits), desc="inv") as pbar:
+        with tqdm.tqdm(total=2**(color_bits+input_bits+helper_bits), desc="inv") as pbar:
             for i in range(2**color_bits):
                 for j in range(2**input_bits):
                     for z in range(2**helper_bits):
@@ -1261,6 +1320,7 @@ def get_args():# {{{
     parser.add_argument('-p', '--pretty', action='store_true', help='pretty print solutions')
     parser.add_argument('-g', '--all-gates', action='store_true', help='try all possible gates')
     parser.add_argument('-G', '--read-gate', action='store_true', help='read gate from stdin')
+    parser.add_argument('-F', '--privacy-free', action='store_true', help='synthesize privacy free schemes')
     args = parser.parse_args()
     return args
 # }}}
@@ -1369,6 +1429,8 @@ if __name__ == "__main__":# {{{
         sys.exit(1)
     if args.all_gates:
         s = shortcuts()[args.shortcut]
+        if args.privacy_free:
+            s['privacy_free'] = 1
         shortcuts = []
         for gate in all_gates(s["input_bits"], s["output_bits"]):
             s_ = copy.copy(s)
@@ -1378,6 +1440,8 @@ if __name__ == "__main__":# {{{
             run_shortcut(s,args) 
     else:
         shortcut = shortcuts()[args.shortcut]
+        if args.privacy_free:
+            shortcut['privacy_free'] = 1
         if args.read_gate:
             s = sys.stdin.readline()
             (gate, input_bits, output_bits) = gate_from_str(s)
