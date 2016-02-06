@@ -833,6 +833,7 @@ def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):# {{{
     checkL = view.concat_rows(outs).mul(B[i][j][z_gb])
     checkR = id_matrix(view.nrows, view.ncols).concat_rows(Ev[j][z_ev])
     ev_correct = checkL.eq(checkR)
+    # ev_correct = outs.mul(B[i][j][z_gb]).eq(Ev[j][z_ev])
 
     # each evaluator oracle query equals one in the basis changed garble constraints
     Gb_C_ = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
@@ -1006,7 +1007,7 @@ def enumerate_scheme(scheme, solver='z3', verbose=False, pretty=False, limit=999
     if not ok:
         print "unsat"
         sys.exit(1)
-    while ok and i < int(limit):
+    while ok and (i < int(limit) if limit else True):
         if verbose:
             print "smt took {0:.2f}s".format(time.time() - start)
             start = time.time()
