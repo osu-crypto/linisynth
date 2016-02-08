@@ -353,6 +353,17 @@ def shortcuts():
         , "h_calls_ev"  : 1
         }
 
+    d['half-gate-h2'] = \
+        { "gate"        : and_gate
+        , "size"        : 2
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 2
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
+        , "adaptive"    : 0
+        }
+
     d['cheaper-and2'] = \
         { "gate"        : and_gate
         , "size"        : 2

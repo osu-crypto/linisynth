@@ -1,6 +1,7 @@
 name, size, input_bits, output_bits, helper_bits, h_arity, h_calls_gb, h_calls_ev, adaptive, free_vars, formula_size,satisfiable,time,smt_time,all_gates
 free-xor,0,2,1,0,1,0,0,1,224,5102,1,1,,
 half-gate-cheaper,2,2,1,0,1,4,1,1,1960,92690,0,22435,,
+half-gate-h2,2,2,1,0,2,4,1,0,2000,114397,,,,
 half-gate,2,2,1,0,1,4,2,0,1972,117586,1,5,,
 cheaper-and,3,2,1,0,2,4,1,1,2296,108130,1,7,,
 nested-xor,0,3,1,0,1,0,0,1,1472,46086,1,6,,
