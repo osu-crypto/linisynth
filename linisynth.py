@@ -151,6 +151,17 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
+    d['any-size-3-in2-4'] = \
+        { "gate"        : None
+        , "size"        : 3
+        , "input_bits"  : 2
+        , "output_bits" : 1
+        , "h_arity"     : 2
+        , "h_calls_gb"  : 4
+        , "h_calls_ev"  : 1
+        , "helper_bits" : 0
+        }
+
     d['any-size-3-in3'] = \
         { "gate"        : None
         , "size"        : 3
