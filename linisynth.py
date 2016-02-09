@@ -162,7 +162,7 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
-    d['mux'] = \
+    d['1-out-of-2-mux'] = \
         { "gate"        : mux_gate
         , "size"        : 2
         , "input_bits"  : 3
@@ -211,7 +211,7 @@ def shortcuts():
         , "privacy_free" : True
         }
 
-    d['leq'] = \
+    d['2-bit-leq'] = \
         { "gate"        : leq_gate
         , "size"        : 1
         , "input_bits"  : 4
@@ -233,7 +233,7 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
-    d['eq'] = \
+    d['2-bit-eq'] = \
         { "gate"        : eq_gate
         , "size"        : 2
         , "input_bits"  : 4
@@ -255,7 +255,7 @@ def shortcuts():
         , "helper_bits" : 0
         }
 
-    d['eq-smaller'] = \
+    d['2-bit-eq-small'] = \
         { "gate"        : eq_gate
         , "size"        : 1
         , "input_bits"  : 4
@@ -290,7 +290,7 @@ def shortcuts():
         , "privacy_free" : 1
         }
 
-    d['lt'] = \
+    d['2-bit-lt'] = \
         { "gate"        : lt2_gate
         , "size"        : 2
         , "input_bits"  : 4
