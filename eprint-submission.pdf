@@ -1,0 +1,78 @@
+\newif\iffullversion
+%\fullversionfalse
+\fullversiontrue
+
+
+\iffullversion
+    \documentclass[11pt,letterpaper]{article}
+    \usepackage[paper=letterpaper,margin=1in]{geometry}
+\else
+    \documentclass[envcountsame]{llncs}
+% somehow these give an error for me now;
+%    \numberwithin{theorem}{section}
+%    \numberwithin{corollary}{section}
+%    \numberwithin{lemma}{section}
+%    \numberwithin{definition}{section}
+%    \numberwithin{proposition}{section}
+\fi
+
+
+\input{headers}
+
+
+\begin{document}
+
+\iffullversion
+    \title{Linicrypt: A Model for Practical Cryptography\thanks{Full version of a paper appearing in CRYPTO 2016.}}
+    \author{Brent Carmer\thanks{Oregon State University, \texttt{$\{$carmerb,rosulekm$\}$@eecs.oregonstate.edu.} Authors supported by NSF award 1149647.} \and Mike Rosulek\footnotemark[2]}
+\else
+    \title{Linicrypt: A Model for Practical Cryptography\thanks{Authors supported by NSF award 1149647}}
+    \author{Brent Carmer \and Mike Rosulek}
+    \institute{Oregon State University, \email{$\{$carmerb,rosulekm$\}$@eecs.oregonstate.edu}}
+\fi
+
+\maketitle
+
+
+\begin{abstract}
+A wide variety of objectively practical cryptographic schemes can be constructed using only symmetric-key operations and linear operations. To formally study this restricted class of cryptographic algorithms, we present a new model called {\em Linicrypt}. A Linicrypt program has access to a random oracle whose inputs and outputs are field elements, and otherwise manipulates data only via fixed linear combinations. %Because Linicrypt programs operate on discrete chunks of data, the model is highly amenable to fine-grained lower bounds even to the level of optimal constant factors.
+\setlength\parindent{18pt}
+
+Our main technical result is that it is possible to decide {\em in polynomial time} whether two given Linicrypt programs induce computationally indistinguishable distributions (against arbitrary PPT adversaries, in the random oracle model).
+
+We show also that indistinguishability of Linicrypt programs can be expressed as an existential formula, making the model amenable to {\em automated program synthesis.} In other words, it is possible to use a SAT/SMT solver to automatically generate Linicrypt programs satisfying a given security constraint. Interestingly, the properties of Linicrypt imply that this synthesis approach is both sound and complete.
+%
+We demonstrate this approach by synthesizing Linicrypt constructions of garbled circuits.
+\end{abstract}
+
+\iffalse
+\thispagestyle{empty}
+\newpage
+\addtocounter{page}{-1}
+\fi
+
+%\todo{page limit = 30 pages LNCS {\bf including references}}
+
+\input{intro}
+\input{overview}
+\input{related}
+\input{prelims}
+\input{linicrypt}
+\input{synth}
+%\input{future}
+
+\iffullversion
+    \bibliographystyle{alpha}
+\else
+    \bibliographystyle{abbrv}
+\fi
+\bibliography{bib,abbrev3,crypto_crossref}
+
+\iffullversion
+    \appendix
+    \input{app-linicrypt}
+    \input{app-composition}
+    \input{app-schemes}
+\fi
+
+\end{document}
