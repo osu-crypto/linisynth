@@ -12,6 +12,7 @@ import argparse
 import time
 import re
 from warnings import warn
+from functools import reduce
 
 ################################################################################
 # shortcuts {{{
@@ -518,7 +519,7 @@ def all_gates(nins, nouts):
     for i in range(nouts):
         tt = list(itertools.product(*[[True,False]]*(2**nins)))
         truth_tables.append(tt)
-    indices = itertools.product(*[range(len(truth_tables[0]))]*nouts) 
+    indices = itertools.product(*[list(range(len(truth_tables[0])))]*nouts)
     for assn in indices:
         def gate(inp, assn=assn):
             outputs = []
@@ -630,7 +631,7 @@ class smatrix (list):
     def det(self):
         assert(self.nrows == self.ncols)
         zs = []
-        for pi in itertools.permutations(range(self.nrows)):
+        for pi in itertools.permutations(list(range(self.nrows))):
             xs = [ self[i][pi[i]] for i in range(self.nrows) ]
             zs.append( And( *xs ) )
         return reduce( Xor, zs )
@@ -648,7 +649,7 @@ class smatrix (list):
 
     def concat_rows(self, rows):
         if not rows: return copy.deepcopy(self)
-        ncols = max(*([self.ncols] + map(len, rows)))
+        ncols = max(*([self.ncols] + list(map(len, rows))))
         out   = smatrix(self.nrows + len(rows), ncols, initialize=False)
         elems = copy.deepcopy(self) + copy.deepcopy(rows)
         for i in range(out.nrows):
@@ -660,11 +661,11 @@ class smatrix (list):
     # adds zero cols as necessary
     def eq(self, other):
         assert(self.nrows == other.nrows)
-        return mapall(lambda t: vec_eq(t[0], t[1]), zip(self, other))
+        return mapall(lambda t: vec_eq(t[0], t[1]), list(zip(self, other)))
 
     def with_rows(self, rows):
         out = smatrix( len(rows), self.ncols, initialize=False )
-        for (i, row) in zip(range(len(rows)), rows):
+        for (i, row) in zip(list(range(len(rows))), rows):
             out[i] = copy.copy(self[row])
         return out
 
@@ -861,7 +862,7 @@ def correctness_(Gb, Gb_C, B, Ev, Ev_C, i, j, z_gb, z_ev, params):# {{{
     Gb_C_ = [ c.basis_change(B[i][j][z_gb]) for c in Gb_C[i][z_gb] ]
     matched_oracles = T
     for ev_c in Ev_C[j][z_ev]:
-        c = Or( *map(lambda d: ev_c.eq(d), Gb_C_))
+        c = Or( *[ev_c.eq(d) for d in Gb_C_])
         matched_oracles = And(matched_oracles, c)
 
     return And(ev_correct, matched_oracles)
@@ -886,7 +887,7 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
     if not 'privacy_free' in params:
         params['privacy_free'] = False
     helper_bits = params['helper_bits']
-    params['output_rows'] = range( size, size + output_bits )
+    params['output_rows'] = list(range( size, size + output_bits))
     if params['privacy_free']:
         color_bits = params['color_bits'] = 0
     else:
@@ -968,12 +969,12 @@ def generate_gb(params, check_security=True, check_correct=True, check_inv=True)
 
     ham_gb = T
     if 'hamming_weight_gb' in params:
-        print "max hamming weight (gb):", params['hamming_weight_gb']
+        print("max hamming weight (gb):", params['hamming_weight_gb'])
         ham_gb = mapall(lambda outer: \
             mapall(lambda e: e.max_hamming_weight(params['hamming_weight_gb']), outer), gb)
     ham_ev = T
     if 'hamming_weight_ev' in params:
-        print "max hamming weight (ev):", params['hamming_weight_ev']
+        print("max hamming weight (ev):", params['hamming_weight_ev'])
         ham_ev = mapall(lambda outer: \
             mapall(lambda e: e.max_hamming_weight(params['hamming_weight_ev']), outer), ev)
     lex = And(lex_gb, lex_ev)
@@ -1012,7 +1013,7 @@ def get_assignment_func(scheme):# {{{
                 variables.extend(c.get_variables())
             for c in scheme['ec'][i][z]:
                 variables.extend(c.get_variables())
-    variables = filter(lambda x: not x.is_true() and not x.is_false(), variables)
+    variables = [x for x in variables if not x.is_true() and not x.is_false()]
     def assignment_func(model):
         ret = [ Not(Xor(x, model.get_value(x))) for x in variables ]
         return And(*ret)
@@ -1027,13 +1028,13 @@ def enumerate_scheme(scheme, solver='z3', verbose=False, pretty=False, limit=999
     s.add_assertion(scheme['formula'])
     ok = s.solve()
     if not ok:
-        print "unsat"
+        print("unsat")
         sys.exit(1)
     while ok and (i < int(limit) if limit else True):
         if verbose:
-            print "smt took {0:.2f}s".format(time.time() - start)
+            print("smt took {0:.2f}s".format(time.time() - start))
             start = time.time()
-        print "enumerate: {}".format(i)
+        print("enumerate: {}".format(i))
         i += 1
         m = s.get_model()
         print_model(scheme, m, pretty)
@@ -1041,7 +1042,7 @@ def enumerate_scheme(scheme, solver='z3', verbose=False, pretty=False, limit=999
         s.add_assertion(Not(p))
         ok = s.solve()
     if verbose:
-        print "enumeration took {:.2f}s".format(time.time() - enumerate_start)
+        print("enumeration took {:.2f}s".format(time.time() - enumerate_start))
     s.exit()
     sys.exit(0)
 # }}}
@@ -1118,7 +1119,7 @@ def mapping_to_str( scheme ):# {{{
             gb_names.append('delta')
             cur_inp = 0
             for row in range(params['h_calls_gb']):
-                args = map(lambda a: args_str(a, gb_names), cs[row].lhs)
+                args = [args_str(a, gb_names) for a in cs[row].lhs]
                 var = "H({})".format(", ".join(args))
                 gb_names.append(var)
             for row in range(len(gb)):
@@ -1145,7 +1146,7 @@ def mapping_to_str( scheme ):# {{{
                 cur_inp += 1
             cur_inp = 0
             for row in range(params['h_calls_ev']):
-                args = map(lambda a: args_str(a, ev_names), ec[row].lhs)
+                args = [args_str(a, ev_names) for a in ec[row].lhs]
                 var = "H({})".format(", ".join(args))
                 ev_names.append(var)
             for row in range(len(ev)):
@@ -1204,7 +1205,7 @@ def mapping_to_pretty_str( scheme ):# {{{
                     fresh_names[(i,z)].append('delta')
                 # add names for the oracle queries
                 for row in range(h_calls):
-                    args = map(lambda a: args_str(a, fresh_names[(i,z)]), cs[i][z][row].lhs)
+                    args = [args_str(a, fresh_names[(i,z)]) for a in cs[i][z][row].lhs]
                     if adaptive:
                         h_str = "H({})".format(", ".join(args))
                         if h_str in h_strs_rev:
@@ -1239,7 +1240,7 @@ def mapping_to_pretty_str( scheme ):# {{{
 
     if params['helper_bits']:
         all_gb_combinations = \
-            set(itertools.product(range(2**params['color_bits']), range(2**params['helper_bits'])))
+            set(itertools.product(list(range(2**params['color_bits'])), list(range(2**params['helper_bits']))))
     else:
         all_gb_combinations = set(range(2**params['color_bits']))
 
@@ -1266,7 +1267,7 @@ def mapping_to_pretty_str( scheme ):# {{{
 
     if params['helper_bits']:
         all_ev_combinations = \
-            set(itertools.product(range(2**params['input_bits']), range(2**params['helper_bits'])))
+            set(itertools.product(list(range(2**params['input_bits'])), list(range(2**params['helper_bits']))))
     else:
         all_ev_combinations = set(range(2**params['input_bits']))
 
@@ -1293,9 +1294,9 @@ def mapping_to_pretty_str( scheme ):# {{{
 def print_model( scheme, model, pretty=False ):# {{{
     s = reverse_mapping(scheme, model)
     if pretty:
-        print mapping_to_pretty_str(s),
+        print(mapping_to_pretty_str(s), end=' ')
     else:
-        print mapping_to_str(s),
+        print(mapping_to_str(s), end=' ')
 # }}}
 ################################################################################
 ## command line interface
@@ -1317,13 +1318,13 @@ def gate_from_str(s):# {{{
     def to_bool(int_str):
         return int(int_str) > 0
     tt = m.group(3).split(' ')
-    tt = map(lambda s: map(to_bool, list(s)), tt)
+    tt = [list(map(to_bool, list(s))) for s in tt]
     def gate(x, tt=tt):
         return tt[x]
     return gate, input_bits, output_bits
 # }}}
 def print_truth_table(gate, input_bits, output_bits):# {{{
-    print gate_to_str(gate, input_bits, output_bits)
+    print(gate_to_str(gate, input_bits, output_bits))
 # }}}
 def get_args():# {{{
     parser = argparse.ArgumentParser()
@@ -1348,18 +1349,18 @@ def get_args():# {{{
     return args
 # }}}
 def print_shortcuts(namesonly=False):# {{{
-    names = shortcuts().keys()
+    names = list(shortcuts().keys())
     names.sort()
     for name in names:
-        print name
+        print(name)
         if not namesonly:
-            for param,val in shortcuts()[name].iteritems():
-                print "\t{}: {}".format(param, val)
-            print
+            for param,val in shortcuts()[name].items():
+                print("\t{}: {}".format(param, val))
+            print()
 # }}}
 def print_column_names():# {{{
-    print "name, size, input_bits, output_bits, helper_bits, h_arity, " +\
-          "h_calls_gb, h_calls_ev, adaptive, free_vars, formula_size"
+    print("name, size, input_bits, output_bits, helper_bits, h_arity, " +\
+          "h_calls_gb, h_calls_ev, adaptive, free_vars, formula_size")
 # }}}
 def print_info(name, scheme, extra_info=False, csv=False):# {{{
     params = scheme['params']
@@ -1378,26 +1379,26 @@ def print_info(name, scheme, extra_info=False, csv=False):# {{{
     adaptive    = params['adaptive']
 
     if csv:
-        print "{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}".format(
+        print("{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}".format(
                 name, size, input_bits, output_bits, helper_bits,
                 h_arity, h_calls_gb, h_calls_ev, adaptive,
-                free_vars, formula_size)
+                free_vars, formula_size))
     else:
-        print name
-        print "\tsize         : {}".format(size)
-        print "\tinput_bits   : {}".format(input_bits)
-        print "\toutput_bits  : {}".format(output_bits)
-        print "\thelper_bits  : {}".format(helper_bits)
-        print "\th_arity      : {}".format(h_arity)
-        print "\th_calls_gb   : {}".format(h_calls_gb)
-        print "\th_calls_ev   : {}".format(h_calls_ev)
-        print "\tadaptive     : {}".format(adaptive)
+        print(name)
+        print("\tsize         : {}".format(size))
+        print("\tinput_bits   : {}".format(input_bits))
+        print("\toutput_bits  : {}".format(output_bits))
+        print("\thelper_bits  : {}".format(helper_bits))
+        print("\th_arity      : {}".format(h_arity))
+        print("\th_calls_gb   : {}".format(h_calls_gb))
+        print("\th_calls_ev   : {}".format(h_calls_ev))
+        print("\tadaptive     : {}".format(adaptive))
         if extra_info:
-            print "\tfree_vars    : {}".format(free_vars)
-            print "\tformula_size : {}".format(formula_size)
+            print("\tfree_vars    : {}".format(free_vars))
+            print("\tformula_size : {}".format(formula_size))
 # }}}
 def run_shortcut(shortcut, args):# {{{
-    if args.read_gate or args.all_gates or args.verbose >= 2:
+    if args.read_gate or args.all_gates or (args.verbose and args.verbose >= 2):
         print_truth_table(shortcut['gate'], shortcut['input_bits'], shortcut['output_bits'])
     scheme = generate_gb( shortcut
                         , check_security = not args.nocorrect
@@ -1406,9 +1407,9 @@ def run_shortcut(shortcut, args):# {{{
                         )
     if args.verbose:
         if args.verbose > 2:
-            print scheme['params']
+            print(scheme['params'])
         print_info(args.shortcut, scheme, extra_info=args.verbose > 1)
-        print "formula generation took {0:.2f}s".format(time.time() - start)
+        print("formula generation took {0:.2f}s".format(time.time() - start))
         smt_start = time.time()
     if args.csv:
         print_info(args.shortcut, scheme, extra_info=True, csv=True)
@@ -1417,21 +1418,21 @@ def run_shortcut(shortcut, args):# {{{
     else:
         if args.enumerate or args.limitedenumerate:
             if args.verbose:
-                print "enumerating formula with {}...".format(args.solver)
+                print("enumerating formula with {}...".format(args.solver))
             enumerate_scheme(scheme, args.solver, args.verbose, args.pretty, args.limitedenumerate)
         else:
             if args.verbose:
-                print "checking formula with {}...".format(args.solver)
+                print("checking formula with {}...".format(args.solver))
             m = check_scheme(scheme, args.solver)
             if args.verbose:
                 end = time.time()
-                print "smt took {0:.2f}s".format(end - smt_start)
-                print "total time was {0:.2f}s".format(end - start)
+                print("smt took {0:.2f}s".format(end - smt_start))
+                print("total time was {0:.2f}s".format(end - start))
             if m:
                 print_model(scheme, m, pretty=args.pretty)
                 return
             else:
-                print "unsat"
+                print("unsat")
                 return
 # }}}
 if __name__ == "__main__":# {{{
@@ -1448,7 +1449,7 @@ if __name__ == "__main__":# {{{
         print_shortcuts()
         sys.exit(0)
     if not args.shortcut:
-        print "error: no shortcut provided"
+        print("error: no shortcut provided")
         sys.exit(1)
     if args.all_gates:
         s = shortcuts()[args.shortcut]
