@@ -1401,8 +1401,8 @@ def run_shortcut(shortcut, args):# {{{
     if args.read_gate or args.all_gates or (args.verbose and args.verbose >= 2):
         print_truth_table(shortcut['gate'], shortcut['input_bits'], shortcut['output_bits'])
     scheme = generate_gb( shortcut
-                        , check_security = not args.nocorrect
-                        , check_correct  = not args.nosecure
+                        , check_security = not args.nosecure
+                        , check_correct  = not args.nocorrect
                         , check_inv      = not args.noinv
                         )
     if args.verbose:
